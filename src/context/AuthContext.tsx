@@ -5,6 +5,9 @@ import {
   signInWithPopup,
   signInWithRedirect,
   signOut as fbSignOut,
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+  sendPasswordResetEmail,
 } from 'firebase/auth';
 import { doc, onSnapshot, writeBatch } from 'firebase/firestore';
 import { auth, db, googleProvider, testConnection } from '../lib/firebase';
@@ -89,6 +92,10 @@ interface AuthContextType {
   loading: boolean;
 
   signInWithGoogle: () => Promise<void>;
+  /** Email + password: create the login (the profile form comes next) */
+  signUpWithEmail: (email: string, password: string) => Promise<void>;
+  signInWithEmail: (email: string, password: string) => Promise<void>;
+  sendPasswordReset: (email: string) => Promise<void>;
   createAccount: (input: NewAccountInput) => Promise<void>;
   signOut: () => Promise<void>;
   /** Authorization header for calls to our own /api routes */
@@ -109,6 +116,9 @@ const AuthContext = createContext<AuthContextType>({
   needsOnboarding: false,
   loading: true,
   signInWithGoogle: async () => {},
+  signUpWithEmail: async () => {},
+  signInWithEmail: async () => {},
+  sendPasswordReset: async () => {},
   createAccount: async () => {},
   signOut: async () => {},
   getAuthHeaders: async () => ({}),
@@ -228,6 +238,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, []);
 
+  const signUpWithEmail = useCallback(async (email: string, password: string) => {
+    await createUserWithEmailAndPassword(auth, email.trim(), password);
+  }, []);
+
+  const signInWithEmail = useCallback(async (email: string, password: string) => {
+    await signInWithEmailAndPassword(auth, email.trim(), password);
+  }, []);
+
+  const sendPasswordReset = useCallback(async (email: string) => {
+    await sendPasswordResetEmail(auth, email.trim());
+  }, []);
+
   const createAccount = useCallback(
     async (input: NewAccountInput) => {
       const user = auth.currentUser;
@@ -298,6 +320,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         needsOnboarding,
         loading,
         signInWithGoogle,
+        signUpWithEmail,
+        signInWithEmail,
+        sendPasswordReset,
         createAccount,
         signOut,
         getAuthHeaders,

@@ -29,8 +29,25 @@ const GoogleLogo = () => (
  * officer access has to be approved by an admin.
  */
 export const AuthPage: React.FC<AuthPageProps> = ({ currentLanguage, onClose }) => {
-  const { firebaseUser, profile, needsOnboarding, loading, authView, openAuth, signInWithGoogle, createAccount, signOut } =
-    useAuth();
+  const {
+    firebaseUser,
+    profile,
+    needsOnboarding,
+    loading,
+    authView,
+    openAuth,
+    signInWithGoogle,
+    signUpWithEmail,
+    signInWithEmail,
+    sendPasswordReset,
+    createAccount,
+    signOut,
+  } = useAuth();
+
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [resetMode, setResetMode] = useState(false);
+  const [info, setInfo] = useState('');
 
   const [requestedRole, setRequestedRole] = useState<'farmer' | 'extension_officer'>('farmer');
   const [name, setName] = useState('');
@@ -40,6 +57,13 @@ export const AuthPage: React.FC<AuthPageProps> = ({ currentLanguage, onClose }) 
   const [consent, setConsent] = useState(false);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+
+  // Switching between Sign in and Sign up starts the form fresh
+  useEffect(() => {
+    setResetMode(false);
+    setError('');
+    setInfo('');
+  }, [authView]);
 
   // Pre-fill the name from Google once
   useEffect(() => {
@@ -59,6 +83,60 @@ export const AuthPage: React.FC<AuthPageProps> = ({ currentLanguage, onClose }) 
           ? 'Google sign-in is not switched on yet. Enable it in Firebase > Authentication > Sign-in method.'
           : err?.message || 'Google sign-in failed. Please try again.'
       );
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const friendlyAuthError = (err: any): string => {
+    switch (err?.code) {
+      case 'auth/email-already-in-use':
+        return 'An account with this email already exists. Please sign in instead.';
+      case 'auth/invalid-email':
+        return 'That email address does not look right.';
+      case 'auth/weak-password':
+        return 'Password is too weak. Use at least 6 characters.';
+      case 'auth/invalid-credential':
+      case 'auth/wrong-password':
+      case 'auth/user-not-found':
+        return 'Wrong email or password.';
+      case 'auth/too-many-requests':
+        return 'Too many attempts. Please wait a few minutes and try again.';
+      case 'auth/operation-not-allowed':
+        return 'Email sign-in is not switched on yet. Enable it in Firebase > Authentication > Sign-in method > Email/Password.';
+      case 'auth/network-request-failed':
+        return 'No internet connection. Please check your network and try again.';
+      default:
+        return err?.message || 'Something went wrong. Please try again.';
+    }
+  };
+
+  const handleEmailSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setInfo('');
+    if (!email.trim()) return setError('Please enter your email address.');
+
+    if (resetMode) {
+      setBusy(true);
+      try {
+        await sendPasswordReset(email);
+        setInfo('If an account exists for this email, a password reset link has been sent. Check your inbox and spam folder.');
+      } catch (err: any) {
+        setError(friendlyAuthError(err));
+      } finally {
+        setBusy(false);
+      }
+      return;
+    }
+
+    if (password.length < 6) return setError('Password must be at least 6 characters.');
+    setBusy(true);
+    try {
+      if (authView === 'signup') await signUpWithEmail(email, password);
+      else await signInWithEmail(email, password);
+    } catch (err: any) {
+      setError(friendlyAuthError(err));
     } finally {
       setBusy(false);
     }
@@ -146,14 +224,92 @@ export const AuthPage: React.FC<AuthPageProps> = ({ currentLanguage, onClose }) 
                   </p>
                 </div>
 
-                <button
-                  onClick={handleGoogle}
-                  disabled={busy}
-                  className="w-full py-3 px-4 bg-white hover:bg-stone-50 border border-stone-300 rounded-xl font-semibold text-sm text-stone-800 flex items-center justify-center gap-3 transition-colors cursor-pointer disabled:opacity-50"
-                >
-                  <GoogleLogo />
-                  <span>{busy ? 'Opening Google…' : authView === 'signup' ? 'Sign up with Google' : 'Continue with Google'}</span>
-                </button>
+                {info && (
+                  <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-xs text-emerald-900 flex items-start gap-2">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-700 shrink-0 mt-0.5" />
+                    <span>{info}</span>
+                  </div>
+                )}
+
+                {!resetMode && (
+                  <>
+                    <button
+                      onClick={handleGoogle}
+                      disabled={busy}
+                      className="w-full py-3 px-4 bg-white hover:bg-stone-50 border border-stone-300 rounded-xl font-semibold text-sm text-stone-800 flex items-center justify-center gap-3 transition-colors cursor-pointer disabled:opacity-50"
+                    >
+                      <GoogleLogo />
+                      <span>{busy ? 'Please wait…' : authView === 'signup' ? 'Sign up with Google' : 'Continue with Google'}</span>
+                    </button>
+
+                    <div className="flex items-center gap-3 text-[11px] text-stone-400 uppercase tracking-wide">
+                      <span className="flex-1 h-px bg-stone-200" />
+                      <span>or use your email</span>
+                      <span className="flex-1 h-px bg-stone-200" />
+                    </div>
+                  </>
+                )}
+
+                <form onSubmit={handleEmailSubmit} className="space-y-3">
+                  {resetMode && (
+                    <p className="text-sm text-stone-600">Enter your email and we will send you a link to choose a new password.</p>
+                  )}
+                  <div>
+                    <label className="block text-xs font-bold text-stone-800 mb-1">Email</label>
+                    <input
+                      className={inputClass}
+                      type="email"
+                      autoComplete="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder="you@example.com"
+                      required
+                    />
+                  </div>
+                  {!resetMode && (
+                    <div>
+                      <label className="block text-xs font-bold text-stone-800 mb-1">Password</label>
+                      <input
+                        className={inputClass}
+                        type="password"
+                        autoComplete={authView === 'signup' ? 'new-password' : 'current-password'}
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        placeholder={authView === 'signup' ? 'At least 6 characters' : 'Your password'}
+                        required
+                        minLength={6}
+                      />
+                    </div>
+                  )}
+                  <button
+                    type="submit"
+                    disabled={busy}
+                    className="w-full py-3 bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-sm rounded-xl shadow-xs transition-colors cursor-pointer disabled:opacity-50"
+                  >
+                    {busy
+                      ? 'Please wait…'
+                      : resetMode
+                      ? 'Send reset link'
+                      : authView === 'signup'
+                      ? 'Continue with email'
+                      : 'Sign in with email'}
+                  </button>
+                  {authView !== 'signup' && (
+                    <div className="text-center">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setResetMode((m) => !m);
+                          setError('');
+                          setInfo('');
+                        }}
+                        className="text-xs text-emerald-700 font-semibold hover:underline cursor-pointer"
+                      >
+                        {resetMode ? 'Back to sign in' : 'Forgot password?'}
+                      </button>
+                    </div>
+                  )}
+                </form>
 
                 <p className="text-center text-sm text-stone-600">
                   {authView === 'signup' ? (
