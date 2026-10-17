@@ -1,0 +1,7 @@
+{
+  "name": "Crop Doctor Malawi",
+  "description": "AI-powered crop disease and pest diagnosis for smallholder farmers in Malawi in Chichewa, Tumbuka, and English.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
+

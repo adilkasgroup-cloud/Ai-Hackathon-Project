@@ -1,0 +1,82 @@
+{
+  "entities": {
+    "User": {
+      "title": "User Profile",
+      "description": "User profile with role (Farmer or Extension Officer) and location details in Malawi",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "description": "Firebase Auth UID" },
+        "email": { "type": "string", "format": "email", "description": "User email address" },
+        "displayName": { "type": "string", "description": "Display name" },
+        "role": { "type": "string", "enum": ["farmer", "extension_officer"], "description": "User role" },
+        "district": { "type": "string", "description": "Malawi District" },
+        "epa": { "type": "string", "description": "Extension Planning Area" },
+        "phone": { "type": "string", "description": "Phone / WhatsApp number" },
+        "createdAt": { "type": "string", "description": "ISO timestamp of registration" },
+        "updatedAt": { "type": "string", "description": "ISO timestamp of last profile update" }
+      },
+      "required": ["uid", "email", "role"]
+    },
+    "DiagnosisRecord": {
+      "title": "Crop Diagnosis Record",
+      "description": "Saved diagnosis record from field photo or sample inspection",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Diagnosis ID" },
+        "userId": { "type": "string", "description": "Farmer or Officer user ID" },
+        "farmerName": { "type": "string", "description": "Name of the farmer" },
+        "cropName": { "type": "string", "description": "Crop name" },
+        "primaryDiagnosis": { "type": "string", "description": "English diagnosis" },
+        "localDiagnosisName": { "type": "string", "description": "Diagnosis in Chichewa/Tumbuka" },
+        "confidenceScore": { "type": "number", "description": "Confidence percentage" },
+        "severity": { "type": "string", "description": "Severity level" },
+        "category": { "type": "string", "description": "Disease, pest, deficiency, etc." },
+        "imageUrl": { "type": "string", "description": "Image data or thumbnail" },
+        "language": { "type": "string", "description": "Language used" },
+        "createdAt": { "type": "string", "description": "Creation timestamp" }
+      },
+      "required": ["id", "userId", "cropName", "primaryDiagnosis"]
+    },
+    "EscalationTicket": {
+      "title": "Extension Escalation Ticket",
+      "description": "Escalated case submitted to AEDO extension officer for human review",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Ticket ID" },
+        "userId": { "type": "string", "description": "Submitting user UID" },
+        "farmerName": { "type": "string", "description": "Farmer name" },
+        "farmerPhone": { "type": "string", "description": "Farmer phone / WhatsApp" },
+        "district": { "type": "string", "description": "District in Malawi" },
+        "epa": { "type": "string", "description": "Extension Planning Area" },
+        "village": { "type": "string", "description": "Village name" },
+        "cropName": { "type": "string", "description": "Crop name" },
+        "primaryDiagnosis": { "type": "string", "description": "Diagnosis name" },
+        "localDiagnosisName": { "type": "string", "description": "Local diagnosis name" },
+        "confidenceScore": { "type": "number", "description": "Confidence percentage" },
+        "escalationReason": { "type": "string", "description": "Reason for escalation" },
+        "additionalNotes": { "type": "string", "description": "Field observations" },
+        "imageUrl": { "type": "string", "description": "Photo thumbnail" },
+        "status": { "type": "string", "enum": ["pending", "in_review", "resolved"], "description": "Current triage status" },
+        "officerFeedback": { "type": "string", "description": "Official AEDO guidance" },
+        "officerName": { "type": "string", "description": "Reviewing officer name" },
+        "reviewedAt": { "type": "string", "description": "Review timestamp" },
+        "createdAt": { "type": "string", "description": "Creation timestamp" }
+      },
+      "required": ["id", "farmerName", "farmerPhone", "district", "status"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/User" },
+      "description": "User profile with role Farmer or Extension Officer"
+    },
+    "/diagnoses/{diagnosisId}": {
+      "schema": { "$ref": "#/entities/DiagnosisRecord" },
+      "description": "Crop diagnosis records saved by farmers"
+    },
+    "/escalations/{ticketId}": {
+      "schema": { "$ref": "#/entities/EscalationTicket" },
+      "description": "Escalated tickets reviewable by extension officers"
+    }
+  }
+}
