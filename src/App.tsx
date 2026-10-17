@@ -13,7 +13,9 @@ import { ExtensionOfficerPortal } from './components/ExtensionOfficerPortal';
 import { ExplanationModal } from './components/ExplanationModal';
 import { CropChatbot } from './components/CropChatbot';
 import { BioscienceWorkbench } from './components/BioscienceWorkbench';
-import { AuthModal } from './components/AuthModal';
+import { AuthPage } from './components/AuthPage';
+import { FarmerCaseReplies } from './components/FarmerCaseReplies';
+import { AdminApprovals } from './components/AdminApprovals';
 import { DiagnosisResult as DiagnosisType, EscalationTicket, Language, SamplePhotoCase } from './types/crop';
 import { TRANSLATIONS } from './data/translations';
 import { applySafetyRules } from './utils/safetyFilter';
@@ -23,7 +25,7 @@ import { collection, addDoc } from 'firebase/firestore';
 import { Sprout, BookmarkCheck } from 'lucide-react';
 
 function CropDoctorApp() {
-  const { farmerProfile, officerProfile, userRole, openAuthModal, isAuthModalOpen, setIsAuthModalOpen } = useAuth();
+  const { farmerProfile, officerProfile, userRole, officerRequest, authView, openAuth, closeAuth, getAuthHeaders } = useAuth();
 
   const [currentLanguage, setCurrentLanguage] = useState<Language>(() => {
     const saved = localStorage.getItem('crop_doctor_lang');
@@ -37,7 +39,7 @@ function CropDoctorApp() {
   const [isAnalyzing, setIsAnalyzing] = useState<boolean>(false);
   const [analyzingStep, setAnalyzingStep] = useState<number>(0);
   const [isEscalationModalOpen, setIsEscalationModalOpen] = useState<boolean>(false);
-  const [pendingCount, setPendingCount] = useState<number>(1);
+  const [pendingCount, setPendingCount] = useState<number>(0);
   const [currentSampleCase, setCurrentSampleCase] = useState<SamplePhotoCase | null>(null);
   const [savedSuccessMsg, setSavedSuccessMsg] = useState<string>('');
 
@@ -71,34 +73,53 @@ function CropDoctorApp() {
       }
     };
 
-    const fetchPendingCount = async () => {
+    checkConfig();
+  }, []);
+
+  // Officers see how many cases are waiting (the queue is officers-only on the server)
+  useEffect(() => {
+    if (!officerProfile) {
+      setPendingCount(0);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
       try {
-        const res = await fetch('/api/escalations?status=pending');
-        if (res.ok) {
+        const res = await fetch('/api/escalations?status=pending', { headers: await getAuthHeaders() });
+        if (res.ok && !cancelled) {
           const tickets: EscalationTicket[] = await res.json();
           setPendingCount(tickets.length);
         }
-      } catch (e) {
-        // Ignored
+      } catch {
+        // ignored
       }
+    })();
+    return () => {
+      cancelled = true;
     };
+  }, [officerProfile?.uid]);
 
-    checkConfig();
-    fetchPendingCount();
-  }, []);
+  // After signing in or finishing sign-up, close the sign-in page and land on the right screen.
+  useEffect(() => {
+    if (authView && userRole !== 'guest') {
+      closeAuth();
+      setActiveTab(userRole === 'extension_officer' ? 'extension' : userRole === 'admin' ? 'admin' : 'diagnose');
+    }
+  }, [authView, userRole]);
 
   // Ensure cases & replies view is only accessible when logged into an officer account
   useEffect(() => {
-    if (activeTab === 'extension' && !officerProfile) {
-      setActiveTab('diagnose');
-    }
-  }, [activeTab, officerProfile]);
+    if (activeTab === 'extension' && !officerProfile) setActiveTab('diagnose');
+    if (activeTab === 'admin' && userRole !== 'admin') setActiveTab('diagnose');
+    if (activeTab === 'farmer_replies' && (userRole === 'extension_officer' || userRole === 'admin')) setActiveTab('diagnose');
+  }, [activeTab, officerProfile, userRole]);
 
   // Save diagnosis to farm history if farmer profile exists
   const saveDiagnosisToHistory = async (diag: DiagnosisType) => {
     if (farmerProfile) {
       try {
         await addDoc(collection(db, 'diagnoses'), {
+          userId: farmerProfile.uid,
           id: diag.id,
           farmerPhone: farmerProfile.phone,
           farmerName: farmerProfile.name,
@@ -213,7 +234,7 @@ function CropDoctorApp() {
         isDemoMode={isDemoMode}
         onToggleDemoMode={() => setIsDemoMode(!isDemoMode)}
         pendingEscalationsCount={pendingCount}
-        onOpenAuth={(tab) => openAuthModal(tab || 'farmer')}
+        onOpenAuth={(view) => openAuth(view || 'signin')}
       />
 
       {/* Main View Area */}
@@ -223,6 +244,19 @@ function CropDoctorApp() {
           <div className="p-3 bg-emerald-100 border border-emerald-300 text-emerald-900 text-xs font-semibold rounded-2xl flex items-center gap-2 animate-in fade-in">
             <BookmarkCheck className="w-4 h-4 text-emerald-700" />
             <span>{savedSuccessMsg}</span>
+          </div>
+        )}
+
+        {/* Officer account waiting for approval */}
+        {officerRequest?.status === 'pending' && userRole === 'farmer' && (
+          <div className="p-3 bg-amber-50 border border-amber-200 text-amber-900 text-xs rounded-2xl">
+            <strong>Extension officer request pending.</strong> An administrator needs to approve your account. Until then you can
+            use Crop Doctor as a farmer.
+          </div>
+        )}
+        {officerRequest?.status === 'rejected' && userRole === 'farmer' && (
+          <div className="p-3 bg-rose-50 border border-rose-200 text-rose-900 text-xs rounded-2xl">
+            Your extension officer request was not approved. Please contact the administrator if you think this is a mistake.
           </div>
         )}
 
@@ -296,6 +330,14 @@ function CropDoctorApp() {
           />
         )}
 
+        {/* Farmer: replies to the cases they sent to an officer */}
+        {activeTab === 'farmer_replies' && (
+          <FarmerCaseReplies currentLanguage={currentLanguage} onNavigateToDiagnose={() => setActiveTab('diagnose')} />
+        )}
+
+        {/* Admin: approve extension officers */}
+        {activeTab === 'admin' && <AdminApprovals />}
+
         {/* Tab 6: How It Works & Architecture Guide */}
         {activeTab === 'explainer' && (
           <ExplanationModal
@@ -317,13 +359,8 @@ function CropDoctorApp() {
         />
       )}
 
-      {/* Lightweight Farmer Sign-Up & Officer PIN Modal Dialog */}
-      <AuthModal
-        isOpen={isAuthModalOpen}
-        onClose={() => setIsAuthModalOpen(false)}
-        currentLanguage={currentLanguage}
-        onOfficerLoginSuccess={() => setActiveTab('extension')}
-      />
+      {/* Sign in / Sign up page (shown on top of the app when requested) */}
+      {authView && <AuthPage currentLanguage={currentLanguage} onClose={closeAuth} />}
 
       {/* Footer */}
       <footer className="mt-auto border-t border-stone-200/80 bg-white py-6 text-stone-500 text-xs">
@@ -361,12 +398,14 @@ function CropDoctorApp() {
               Bioscience
             </button>
             <span>•</span>
-            <button
-              onClick={() => openAuthModal('officer')}
-              className="hover:text-emerald-700 transition-colors cursor-pointer font-semibold text-emerald-800"
-            >
-              {officerProfile ? '🧑‍🌾 Officer Profile' : 'Officer Login (PIN)'}
-            </button>
+            {!farmerProfile && !officerProfile && userRole !== 'admin' && (
+              <button
+                onClick={() => openAuth('signin')}
+                className="hover:text-emerald-700 transition-colors cursor-pointer font-semibold text-emerald-800"
+              >
+                Sign in
+              </button>
+            )}
           </div>
         </div>
       </footer>

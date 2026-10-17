@@ -30,70 +30,46 @@ export const FarmerCaseReplies: React.FC<FarmerCaseRepliesProps> = ({
   currentLanguage,
   onNavigateToDiagnose,
 }) => {
-  const { farmerProfile, loginFarmerWithPassword, registerFarmer, logoutFarmer } = useAuth();
-
-  // Login form state (if farmer not yet logged in)
-  const [authMode, setAuthMode] = useState<'login' | 'signup'>('login');
-  const [phone, setPhone] = useState('+265 888 234 567');
-  const [password, setPassword] = useState('farmer2026');
-  const [name, setName] = useState('');
-  const [district, setDistrict] = useState('Lilongwe');
-  const [epa, setEpa] = useState('');
-  const [consent, setConsent] = useState(true);
-  const [authError, setAuthError] = useState('');
-  const [isSubmittingAuth, setIsSubmittingAuth] = useState(false);
+  const { farmerProfile, firebaseUser, openAuth, signOut, getAuthHeaders } = useAuth();
 
   // Cases state
   const [cases, setCases] = useState<EscalationTicket[]>([]);
   const [isLoadingCases, setIsLoadingCases] = useState(false);
   const [selectedCase, setSelectedCase] = useState<EscalationTicket | null>(null);
+  const [loadError, setLoadError] = useState('');
 
-  // Fetch farmer cases
-  const fetchFarmerCases = async (farmerPhone: string) => {
+  // Fetch only the signed-in farmer's own cases (the server checks who you are)
+  const fetchFarmerCases = async () => {
     setIsLoadingCases(true);
+    setLoadError('');
     try {
-      const res = await fetch(`/api/farmer-cases?phone=${encodeURIComponent(farmerPhone)}`);
+      const res = await fetch('/api/farmer-cases', { headers: await getAuthHeaders() });
       if (res.ok) {
         const data: EscalationTicket[] = await res.json();
         setCases(data);
         if (data.length > 0 && !selectedCase) {
           setSelectedCase(data[0]);
         }
+      } else {
+        const data = await res.json().catch(() => ({}));
+        setLoadError(data.error || 'Could not load your cases.');
       }
     } catch (e) {
       console.error(e);
+      setLoadError('Could not reach the server. Please check your connection.');
     } finally {
       setIsLoadingCases(false);
     }
   };
 
   useEffect(() => {
-    if (farmerProfile?.phone) {
-      fetchFarmerCases(farmerProfile.phone);
+    if (farmerProfile) {
+      fetchFarmerCases();
+    } else {
+      setCases([]);
+      setSelectedCase(null);
     }
-  }, [farmerProfile]);
-
-  // Handle Farmer Login with Password
-  const handleLoginSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setAuthError('');
-    setIsSubmittingAuth(true);
-
-    try {
-      if (authMode === 'login') {
-        await loginFarmerWithPassword(phone, password);
-      } else {
-        if (!name.trim()) {
-          throw new Error('Please enter your full name');
-        }
-        await registerFarmer(name, phone, district, epa, password, consent);
-      }
-    } catch (err: any) {
-      setAuthError(err?.message || 'Authentication failed. Please check your phone number and password.');
-    } finally {
-      setIsSubmittingAuth(false);
-    }
-  };
+  }, [farmerProfile?.uid]);
 
   const getWhatsAppOfficerUrl = (ticket: EscalationTicket) => {
     const text = [
@@ -106,162 +82,44 @@ export const FarmerCaseReplies: React.FC<FarmerCaseRepliesProps> = ({
     return `https://wa.me/?text=${encodeURIComponent(text)}`;
   };
 
-  // IF FARMER IS NOT LOGGED IN: Show secure Password-protected Login Screen
+  // NOT SIGNED IN: ask the visitor to sign in (diagnosis itself stays free)
   if (!farmerProfile) {
     return (
-      <div className="bg-white rounded-3xl border border-stone-200 shadow-sm p-6 sm:p-10 max-w-md mx-auto my-6 space-y-6 animate-in fade-in duration-300">
-        <div className="text-center space-y-2">
-          <div className="w-16 h-16 rounded-3xl bg-emerald-100 text-emerald-800 flex items-center justify-center mx-auto shadow-inner">
-            <Lock className="w-8 h-8 text-emerald-700" />
-          </div>
-          <h2 className="text-xl font-bold text-stone-900 tracking-tight">
-            Farmer Case Replies Portal
-          </h2>
+      <div className="bg-white rounded-3xl border border-stone-200 shadow-sm p-6 sm:p-10 max-w-md mx-auto my-6 space-y-6 text-center animate-in fade-in duration-300">
+        <div className="w-16 h-16 rounded-3xl bg-emerald-100 text-emerald-800 flex items-center justify-center mx-auto shadow-inner">
+          <Lock className="w-8 h-8 text-emerald-700" />
+        </div>
+        <div className="space-y-2">
+          <h2 className="text-xl font-bold text-stone-900 tracking-tight">Farmer Case Replies</h2>
           <p className="text-xs text-stone-500 max-w-sm mx-auto leading-relaxed">
-            Log in with your phone number and password to view official advice and recommendations sent by your local extension officer.
+            {firebaseUser
+              ? 'Finish creating your account to see replies from your extension officer.'
+              : 'Sign in to view official advice and recommendations sent by your local extension officer.'}
           </p>
         </div>
-
-        {/* Tab Toggle: Log In vs Sign Up */}
-        <div className="bg-stone-100 p-1 rounded-2xl grid grid-cols-2 text-xs font-bold">
+        <div className="flex flex-col sm:flex-row items-center justify-center gap-2.5">
+          {!firebaseUser && (
+            <button
+              onClick={() => openAuth('signin')}
+              className="w-full sm:w-auto px-6 py-3 bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs rounded-xl shadow-xs transition-colors cursor-pointer"
+            >
+              Sign in
+            </button>
+          )}
           <button
-            type="button"
-            onClick={() => {
-              setAuthMode('login');
-              setAuthError('');
-            }}
-            className={`py-2 rounded-xl transition-all cursor-pointer ${
-              authMode === 'login'
-                ? 'bg-white text-emerald-950 shadow-xs'
-                : 'text-stone-600 hover:text-stone-900'
+            onClick={() => openAuth('signup')}
+            className={`w-full sm:w-auto px-6 py-3 font-bold text-xs rounded-xl transition-colors cursor-pointer ${
+              firebaseUser
+                ? 'bg-emerald-700 hover:bg-emerald-800 text-white shadow-xs'
+                : 'border border-emerald-300 text-emerald-800 hover:bg-emerald-50'
             }`}
           >
-            Log In (Existing)
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setAuthMode('signup');
-              setAuthError('');
-            }}
-            className={`py-2 rounded-xl transition-all cursor-pointer ${
-              authMode === 'signup'
-                ? 'bg-white text-emerald-950 shadow-xs'
-                : 'text-stone-600 hover:text-stone-900'
-            }`}
-          >
-            Sign Up (New Account)
+            {firebaseUser ? 'Finish sign-up' : 'Create an account'}
           </button>
         </div>
-
-        {authError && (
-          <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-800 flex items-start gap-2">
-            <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
-            <span>{authError}</span>
-          </div>
-        )}
-
-        <form onSubmit={handleLoginSubmit} className="space-y-3.5 text-xs">
-          {authMode === 'signup' && (
-            <div>
-              <label className="block font-bold text-stone-800 mb-1">
-                Full Name (Dzina Lanu):
-              </label>
-              <input
-                type="text"
-                required
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="e.g. Kondwani Phiri"
-                className="w-full px-3.5 py-2.5 bg-stone-50 border border-stone-300 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
-              />
-            </div>
-          )}
-
-          <div>
-            <label className="block font-bold text-stone-800 mb-1">
-              Phone / WhatsApp Number (+265):
-            </label>
-            <input
-              type="tel"
-              required
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              placeholder="+265 888 123 456"
-              className="w-full px-3.5 py-2.5 bg-stone-50 border border-stone-300 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 font-mono"
-            />
-          </div>
-
-          <div>
-            <div className="flex items-center justify-between mb-1">
-              <label className="font-bold text-stone-800">Password:</label>
-              <span className="text-[10px] text-emerald-800 font-mono font-bold bg-emerald-50 px-1.5 py-0.5 rounded">
-                Demo: farmer2026
-              </span>
-            </div>
-            <input
-              type="password"
-              required
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="Enter your account password"
-              className="w-full px-3.5 py-2.5 bg-stone-50 border border-stone-300 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 font-mono"
-            />
-          </div>
-
-          {authMode === 'signup' && (
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <label className="block font-semibold text-stone-700 mb-1">
-                  District:
-                </label>
-                <select
-                  value={district}
-                  onChange={(e) => setDistrict(e.target.value)}
-                  className="w-full px-2.5 py-2 bg-stone-50 border border-stone-300 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                >
-                  {MALAWI_DISTRICTS.map((d) => (
-                    <option key={d} value={d}>
-                      {d}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block font-semibold text-stone-700 mb-1">
-                  EPA (Optional):
-                </label>
-                <input
-                  type="text"
-                  value={epa}
-                  onChange={(e) => setEpa(e.target.value)}
-                  placeholder="e.g. Chulu EPA"
-                  className="w-full px-2.5 py-2 bg-stone-50 border border-stone-300 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                />
-              </div>
-            </div>
-          )}
-
-          <button
-            type="submit"
-            disabled={isSubmittingAuth}
-            className="w-full py-3 bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs rounded-xl shadow-xs transition-colors cursor-pointer flex items-center justify-center gap-2 disabled:opacity-50 mt-2"
-          >
-            <Lock className="w-3.5 h-3.5" />
-            <span>
-              {isSubmittingAuth
-                ? 'Verifying...'
-                : authMode === 'login'
-                ? 'Log In to View Replies'
-                : 'Create Account & View Replies'}
-            </span>
-          </button>
-        </form>
-
-        <div className="p-3 bg-stone-50 rounded-2xl border border-stone-200 text-[11px] text-stone-500">
-          <strong>Demo Farmer Account:</strong> You can test using pre-seeded phone <code>+265 888 234 567</code> with password <code>farmer2026</code>.
-        </div>
+        <button onClick={onNavigateToDiagnose} className="text-xs text-stone-500 hover:text-stone-800 cursor-pointer">
+          Back to free diagnosis
+        </button>
       </div>
     );
   }
@@ -299,7 +157,7 @@ export const FarmerCaseReplies: React.FC<FarmerCaseRepliesProps> = ({
 
         <div className="flex items-center gap-2 shrink-0">
           <button
-            onClick={() => fetchFarmerCases(farmerProfile.phone)}
+            onClick={() => fetchFarmerCases()}
             className="p-2.5 rounded-xl border border-stone-200 text-stone-600 hover:bg-stone-50 transition-colors cursor-pointer"
             title="Refresh Cases"
           >
@@ -307,14 +165,21 @@ export const FarmerCaseReplies: React.FC<FarmerCaseRepliesProps> = ({
           </button>
 
           <button
-            onClick={logoutFarmer}
+            onClick={signOut}
             className="px-3 py-2 rounded-xl border border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100 text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer"
           >
             <LogOut className="w-3.5 h-3.5" />
-            <span>Log Out</span>
+            <span>Sign Out</span>
           </button>
         </div>
       </div>
+
+      {loadError && (
+        <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-800 flex items-start gap-2">
+          <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+          <span>{loadError}</span>
+        </div>
+      )}
 
       {/* Metrics Bar */}
       <div className="grid grid-cols-3 gap-3 text-center text-xs">

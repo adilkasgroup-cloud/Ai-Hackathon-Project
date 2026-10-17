@@ -29,36 +29,41 @@ export const ExtensionOfficerPortal: React.FC<ExtensionOfficerPortalProps> = ({
   currentLanguage,
   onSelectCaseToView,
 }) => {
-  const { officerProfile, logoutOfficer, openAuthModal, loginOfficerWithPin } = useAuth();
+  const { officerProfile, firebaseUser, openAuth, signOut, getAuthHeaders } = useAuth();
   const [tickets, setTickets] = useState<EscalationTicket[]>([]);
   const [selectedTicket, setSelectedTicket] = useState<EscalationTicket | null>(null);
   const [districtFilter, setDistrictFilter] = useState<string>('all');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
-  // Quick inline PIN state for officers not yet logged in
-  const [quickPin, setQuickPin] = useState('');
-  const [quickOfficerName, setQuickOfficerName] = useState('AEDO J. Mwale');
-  const [pinError, setPinError] = useState('');
+  const [loadError, setLoadError] = useState('');
 
   // Officer feedback form states
   const [officerNotes, setOfficerNotes] = useState('');
   const [isUpdating, setIsUpdating] = useState(false);
 
   const fetchTickets = async () => {
+    if (!officerProfile) {
+      setIsLoading(false);
+      return;
+    }
     setIsLoading(true);
+    setLoadError('');
     try {
       const url = new URL('/api/escalations', window.location.origin);
       if (districtFilter !== 'all') url.searchParams.set('district', districtFilter);
       if (statusFilter !== 'all') url.searchParams.set('status', statusFilter);
 
-      const res = await fetch(url.toString());
+      const res = await fetch(url.toString(), { headers: await getAuthHeaders() });
       if (res.ok) {
         const data = await res.json();
         setTickets(data);
         if (data.length > 0 && !selectedTicket) {
           setSelectedTicket(data[0]);
         }
+      } else {
+        const data = await res.json().catch(() => ({}));
+        setLoadError(data.error || 'Could not load the case queue.');
       }
     } catch (e) {
       console.error(e);
@@ -69,17 +74,17 @@ export const ExtensionOfficerPortal: React.FC<ExtensionOfficerPortalProps> = ({
 
   useEffect(() => {
     fetchTickets();
-  }, [districtFilter, statusFilter]);
+  }, [districtFilter, statusFilter, officerProfile?.uid]);
 
   const handleUpdateStatus = async (ticketId: string, newStatus: 'pending' | 'in_review' | 'resolved') => {
     setIsUpdating(true);
     try {
       const res = await fetch(`/api/escalations/${ticketId}`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...(await getAuthHeaders()) },
+        // The server records your name from your verified account
         body: JSON.stringify({
           status: newStatus,
-          officerName: officerProfile?.name || 'Agricultural Extension Development Officer (AEDO)',
           officerFeedback: officerNotes || (selectedTicket?.officerFeedback || ''),
         }),
       });
@@ -94,17 +99,6 @@ export const ExtensionOfficerPortal: React.FC<ExtensionOfficerPortalProps> = ({
       console.error(e);
     } finally {
       setIsUpdating(false);
-    }
-  };
-
-  const handleQuickPinLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setPinError('');
-    try {
-      await loginOfficerWithPin(quickPin, quickOfficerName, 'Lilongwe', 'Central EPA');
-      setQuickPin('');
-    } catch (err: any) {
-      setPinError(err?.message || 'Invalid PIN. Try default PIN: 2026.');
     }
   };
 
@@ -124,7 +118,7 @@ export const ExtensionOfficerPortal: React.FC<ExtensionOfficerPortalProps> = ({
   const pendingCount = tickets.filter((t) => t.status === 'pending').length;
   const criticalCount = tickets.filter((t) => t.diagnosis.severity === 'critical').length;
 
-  // PIN GUARD: If not logged in as an officer, show PIN barrier
+  // ACCESS GUARD: only approved extension officers see the queue (the server enforces this too)
   if (!officerProfile) {
     return (
       <div className="bg-white rounded-3xl border border-stone-200 shadow-sm p-8 max-w-lg mx-auto my-8 space-y-6 text-center animate-in fade-in duration-300">
@@ -136,65 +130,27 @@ export const ExtensionOfficerPortal: React.FC<ExtensionOfficerPortalProps> = ({
           <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-50 border border-amber-200 text-amber-900 text-xs font-bold mb-2">
             <span>Restricted Access</span>
           </div>
-          <h2 className="text-xl font-bold text-stone-900 tracking-tight">
-            Officer Cases & Replies Portal
-          </h2>
+          <h2 className="text-xl font-bold text-stone-900 tracking-tight">Officer Cases & Replies</h2>
           <p className="text-xs text-stone-500 mt-1.5 max-w-sm mx-auto leading-relaxed">
-            Submitted farmer crop cases and officer advisory replies are strictly accessible to verified Agricultural Extension Development Officers (AEDO).
+            Submitted farmer crop cases are only available to approved Agricultural Extension Development Officers (AEDO).
+            Officer accounts are approved by an administrator.
           </p>
         </div>
 
-        {pinError && (
-          <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-800 text-left">
-            {pinError}
-          </div>
-        )}
-
-        <form onSubmit={handleQuickPinLogin} className="space-y-3.5 text-left max-w-sm mx-auto">
-          <div>
-            <label className="block text-xs font-bold text-stone-700 mb-1">
-              Extension Officer Name & Title:
-            </label>
-            <input
-              type="text"
-              required
-              value={quickOfficerName}
-              onChange={(e) => setQuickOfficerName(e.target.value)}
-              placeholder="e.g. AEDO J. Mwale"
-              className="w-full text-xs px-3.5 py-2.5 bg-stone-50 border border-stone-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500"
-            />
-          </div>
-
-          <div>
-            <div className="flex items-center justify-between mb-1">
-              <label className="text-xs font-bold text-stone-700">Staff PIN:</label>
-              <span className="text-[10px] text-emerald-800 font-bold bg-emerald-50 px-1.5 py-0.5 rounded font-mono">
-                Default PIN: 2026
-              </span>
-            </div>
-            <input
-              type="password"
-              required
-              value={quickPin}
-              onChange={(e) => setQuickPin(e.target.value)}
-              placeholder="Enter PIN (e.g. 2026)"
-              className="w-full text-sm font-mono tracking-widest text-center px-3.5 py-2.5 bg-stone-50 border border-stone-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500"
-            />
-          </div>
-
+        {!firebaseUser && (
           <button
-            type="submit"
-            className="w-full py-3 bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs rounded-xl shadow-xs transition-colors cursor-pointer flex items-center justify-center gap-1.5"
+            onClick={() => openAuth('signin')}
+            className="px-6 py-3 bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs rounded-xl shadow-xs transition-colors cursor-pointer"
           >
-            <Lock className="w-3.5 h-3.5" />
-            <span>Unlock Officer Cases & Replies</span>
+            Sign in
           </button>
-        </form>
+        )}
 
         <div className="p-3 bg-stone-50 rounded-2xl border border-stone-200 text-left text-[11px] text-stone-500 space-y-1">
           <p className="font-semibold text-stone-700">Note for farmers:</p>
           <p>
-            Farmers do not have access to the officer case registry. When an extension officer reviews your case, their official recommendations are texted to you directly on WhatsApp or SMS.
+            Farmers cannot see other people's cases. When an extension officer reviews your case, their advice appears under
+            “My Case Replies”.
           </p>
         </div>
       </div>
@@ -216,7 +172,7 @@ export const ExtensionOfficerPortal: React.FC<ExtensionOfficerPortalProps> = ({
                   Extension Officer Queue (EPA / AEDO)
                 </h2>
                 <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/30 text-emerald-200 border border-emerald-400/30">
-                  PIN Verified
+                  Verified Officer
                 </span>
               </div>
               <p className="text-xs text-emerald-200/80 mt-0.5">
@@ -236,15 +192,19 @@ export const ExtensionOfficerPortal: React.FC<ExtensionOfficerPortalProps> = ({
               <span className="text-[10px] text-rose-200 uppercase font-bold">High Threat</span>
             </div>
             <button
-              onClick={logoutOfficer}
+              onClick={signOut}
               className="p-2 rounded-xl bg-emerald-950/80 hover:bg-rose-900/80 border border-emerald-700/60 text-emerald-200 hover:text-white transition-colors cursor-pointer"
-              title="Log Out Officer Session"
+              title="Sign out"
             >
               <LogOut className="w-4 h-4" />
             </button>
           </div>
         </div>
       </div>
+
+      {loadError && (
+        <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-800">{loadError}</div>
+      )}
 
       {/* Filter controls */}
       <div className="bg-white p-3.5 rounded-2xl border border-stone-200 flex flex-wrap items-center justify-between gap-3 text-xs">

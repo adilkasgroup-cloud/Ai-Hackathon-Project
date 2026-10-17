@@ -1,10 +1,10 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Language } from '../types/crop';
 import { TRANSLATIONS } from '../data/translations';
-import { Sprout, UserCheck, HelpCircle, Sparkles, MessageSquare, Dna, Lock, User, FileText, Inbox } from 'lucide-react';
+import { Sprout, UserCheck, HelpCircle, Sparkles, MessageSquare, Dna, Lock, User, FileText, Inbox, LogOut, ShieldCheck, ChevronDown } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
-export type AppTab = 'diagnose' | 'chat' | 'farmer_replies' | 'science' | 'extension' | 'explainer';
+export type AppTab = 'diagnose' | 'chat' | 'farmer_replies' | 'science' | 'extension' | 'admin' | 'explainer';
 
 interface HeaderProps {
   currentLanguage: Language;
@@ -15,7 +15,7 @@ interface HeaderProps {
   isDemoMode: boolean;
   onToggleDemoMode: () => void;
   pendingEscalationsCount: number;
-  onOpenAuth: (tab?: 'farmer' | 'officer') => void;
+  onOpenAuth: (view?: 'signin' | 'signup') => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -30,7 +30,10 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenAuth,
 }) => {
   const t = TRANSLATIONS[currentLanguage];
-  const { farmerProfile, officerProfile, userRole } = useAuth();
+  const { profile, farmerProfile, officerProfile, userRole, needsOnboarding, loading, signOut } = useAuth();
+  const [menuOpen, setMenuOpen] = useState(false);
+  const firstName = (profile?.displayName || '').split(' ')[0] || 'Account';
+  const roleLabel = userRole === 'extension_officer' ? 'Extension Officer' : userRole === 'admin' ? 'Administrator' : 'Farmer';
 
   return (
     <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-emerald-900/10 shadow-xs">
@@ -44,28 +47,74 @@ export const Header: React.FC<HeaderProps> = ({
           </div>
 
           <div className="flex items-center gap-2">
-            {/* User Profile / Sign in button */}
-            <button
-              onClick={() => onOpenAuth(officerProfile ? 'officer' : 'farmer')}
-              className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg bg-emerald-950/70 hover:bg-emerald-800 text-emerald-200 hover:text-white border border-emerald-700/60 text-xs font-semibold transition-colors cursor-pointer"
-            >
-              {officerProfile ? (
-                <>
-                  <Lock className="w-3 h-3 text-emerald-400" />
-                  <span>🧑‍🌾 {officerProfile.name.split(' ')[0]} (AEDO)</span>
-                </>
-              ) : farmerProfile ? (
-                <>
-                  <User className="w-3 h-3 text-emerald-400" />
-                  <span>🌾 {farmerProfile.name.split(' ')[0]} ({farmerProfile.district})</span>
-                </>
-              ) : (
-                <>
-                  <User className="w-3 h-3" />
-                  <span>Sign Up / Officer PIN</span>
-                </>
-              )}
-            </button>
+            {/* Account: Sign in / Sign up for guests, account menu for signed-in users */}
+            {loading ? null : profile ? (
+              <div className="relative">
+                <button
+                  onClick={() => setMenuOpen((o) => !o)}
+                  className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg bg-emerald-950/70 hover:bg-emerald-800 text-emerald-200 hover:text-white border border-emerald-700/60 text-xs font-semibold transition-colors cursor-pointer"
+                >
+                  {userRole === 'extension_officer' ? (
+                    <Lock className="w-3 h-3 text-emerald-400" />
+                  ) : userRole === 'admin' ? (
+                    <ShieldCheck className="w-3 h-3 text-emerald-400" />
+                  ) : (
+                    <User className="w-3 h-3 text-emerald-400" />
+                  )}
+                  <span>{firstName}</span>
+                  <ChevronDown className="w-3 h-3" />
+                </button>
+
+                {menuOpen && (
+                  <>
+                    <div className="fixed inset-0 z-40" onClick={() => setMenuOpen(false)} />
+                    <div className="absolute right-0 mt-1.5 w-56 z-50 bg-white text-stone-800 rounded-xl border border-stone-200 shadow-lg p-3 space-y-2">
+                      <div>
+                        <p className="text-sm font-bold text-stone-900 truncate">{profile.displayName}</p>
+                        <p className="text-[11px] text-stone-500 truncate">{profile.email}</p>
+                        <p className="text-[11px] text-stone-500 mt-0.5">{profile.district} District</p>
+                        <span className="inline-block mt-1.5 text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">
+                          {roleLabel}
+                        </span>
+                      </div>
+                      <button
+                        onClick={() => {
+                          setMenuOpen(false);
+                          signOut();
+                        }}
+                        className="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-xs font-semibold text-rose-700 hover:bg-rose-50 cursor-pointer"
+                      >
+                        <LogOut className="w-3.5 h-3.5" />
+                        <span>Sign out</span>
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
+            ) : needsOnboarding ? (
+              <button
+                onClick={() => onOpenAuth('signup')}
+                className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg bg-amber-400 hover:bg-amber-300 text-amber-950 border border-amber-500 text-xs font-bold transition-colors cursor-pointer"
+              >
+                <User className="w-3 h-3" />
+                <span>Finish sign-up</span>
+              </button>
+            ) : (
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => onOpenAuth('signin')}
+                  className="px-2.5 py-0.5 rounded-lg text-emerald-100 hover:text-white hover:bg-emerald-800 text-xs font-semibold transition-colors cursor-pointer"
+                >
+                  Sign in
+                </button>
+                <button
+                  onClick={() => onOpenAuth('signup')}
+                  className="px-2.5 py-0.5 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-white border border-emerald-400 text-xs font-bold transition-colors cursor-pointer"
+                >
+                  Sign up
+                </button>
+              </div>
+            )}
 
             {/* Language Switcher */}
             <div className="flex items-center gap-1 bg-emerald-950/70 p-0.5 rounded-lg border border-emerald-700/60 shrink-0">
@@ -175,25 +224,27 @@ export const Header: React.FC<HeaderProps> = ({
               <span>AI Chat & Search</span>
             </button>
 
-            {/* Farmer Case Replies Tab */}
-            <button
-              onClick={() => {
-                if (!farmerProfile) {
-                  onOpenAuth('farmer');
-                } else {
-                  onTabChange('farmer_replies');
-                }
-              }}
-              className={`flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-xl transition-colors shrink-0 cursor-pointer ${
-                activeTab === 'farmer_replies'
-                  ? 'bg-emerald-100 text-emerald-900 border border-emerald-300'
-                  : 'text-stone-700 hover:bg-stone-100'
-              }`}
-              title="View extension officer replies and guidance on your submitted crop cases"
-            >
-              <Inbox className="w-4 h-4 text-emerald-700" />
-              <span>My Case Replies</span>
-            </button>
+            {/* Farmer Case Replies Tab (farmers and visitors only; officers have their own queue) */}
+            {userRole !== 'extension_officer' && userRole !== 'admin' && (
+              <button
+                onClick={() => {
+                  if (!farmerProfile) {
+                    onOpenAuth('signin');
+                  } else {
+                    onTabChange('farmer_replies');
+                  }
+                }}
+                className={`flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-xl transition-colors shrink-0 cursor-pointer ${
+                  activeTab === 'farmer_replies'
+                    ? 'bg-emerald-100 text-emerald-900 border border-emerald-300'
+                    : 'text-stone-700 hover:bg-stone-100'
+                }`}
+                title="View extension officer replies and guidance on your submitted crop cases"
+              >
+                <Inbox className="w-4 h-4 text-emerald-700" />
+                <span>My Case Replies</span>
+              </button>
+            )}
 
             {/* Bioscience Pathogen Genomics Tab */}
             <button
@@ -226,6 +277,21 @@ export const Header: React.FC<HeaderProps> = ({
                     {pendingEscalationsCount}
                   </span>
                 )}
+              </button>
+            )}
+
+            {/* Admin: approve extension officers (admins only) */}
+            {userRole === 'admin' && (
+              <button
+                onClick={() => onTabChange('admin')}
+                className={`flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-xl transition-colors shrink-0 cursor-pointer ${
+                  activeTab === 'admin'
+                    ? 'bg-blue-100 text-blue-900 border border-blue-300'
+                    : 'text-stone-700 hover:bg-stone-100'
+                }`}
+              >
+                <ShieldCheck className="w-4 h-4 text-blue-700" />
+                <span>Approvals</span>
               </button>
             )}
 
