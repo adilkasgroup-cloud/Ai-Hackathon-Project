@@ -36,6 +36,7 @@ export interface DiagnosisResult {
 
 export interface EscalationTicket {
   id: string;
+  userId?: string; // Firebase UID of the farmer who submitted it (absent on seeded demo tickets)
   diagnosis: DiagnosisResult;
   farmerName: string;
   farmerPhone: string;

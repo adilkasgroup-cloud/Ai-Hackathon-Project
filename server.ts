@@ -6,6 +6,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { DiagnosisResult, EscalationTicket, Language } from './src/types/crop';
 import { applySafetyRules, sanitizeAdviceText } from './src/utils/safetyFilter';
+import { requireAuth, requireRole, optionalAuth } from './serverAuth';
 
 dotenv.config();
 
@@ -354,24 +355,33 @@ Return valid JSON conforming to this structure:
   }
 });
 
-// POST /api/escalate: Submit case to Extension Officer
-app.post('/api/escalate', (req: Request, res: Response) => {
-  const { diagnosis, farmerName, farmerPhone, district, epa, village, additionalNotes } = req.body;
+// POST /api/escalate: A signed-in farmer sends a case to an Extension Officer.
+// The farmer's name, phone, district and EPA come from their verified profile on the
+// server, NOT from the request body, so they cannot be spoofed.
+app.post('/api/escalate', requireRole('farmer'), (req: Request, res: Response) => {
+  const user = req.user!;
+  const { diagnosis, village, additionalNotes } = req.body;
 
-  if (!diagnosis || !farmerName || !farmerPhone || !district) {
-    res.status(400).json({ error: 'Diagnosis, farmer name, phone, and district are required' });
+  if (!diagnosis || typeof diagnosis !== 'object') {
+    res.status(400).json({ error: 'A diagnosis is required' });
+    return;
+  }
+
+  if (!user.phone || !user.district) {
+    res.status(400).json({ error: 'Please add your phone number and district to your profile before sending a case.' });
     return;
   }
 
   const ticket: EscalationTicket = {
     id: 'esc-' + Date.now() + '-' + Math.floor(Math.random() * 1000),
+    userId: user.uid,
     diagnosis,
-    farmerName,
-    farmerPhone,
-    district,
-    epa: epa || 'General Extension Area',
-    village: village || '',
-    additionalNotes: additionalNotes || '',
+    farmerName: user.name || 'Farmer',
+    farmerPhone: user.phone,
+    district: user.district,
+    epa: user.epa || 'General Extension Area',
+    village: String(village || '').slice(0, 120),
+    additionalNotes: String(additionalNotes || '').slice(0, 1000),
     status: 'pending',
     createdAt: new Date().toISOString(),
   };
@@ -380,8 +390,8 @@ app.post('/api/escalate', (req: Request, res: Response) => {
   res.status(201).json(ticket);
 });
 
-// GET /api/escalations: Retrieve extension officer queue
-app.get('/api/escalations', (req: Request, res: Response) => {
+// GET /api/escalations: The officer queue. Extension officers only.
+app.get('/api/escalations', requireRole('extension_officer'), (req: Request, res: Response) => {
   const { district, status } = req.query;
   let filtered = [...escalationQueue];
 
@@ -396,200 +406,55 @@ app.get('/api/escalations', (req: Request, res: Response) => {
   res.json(filtered);
 });
 
-// PATCH /api/escalations/:id: Officer review/feedback
-app.patch('/api/escalations/:id', (req: Request, res: Response) => {
-  const { id } = req.params;
-  const { status, officerFeedback, officerName } = req.body;
+// PATCH /api/escalations/:id: Officer review/feedback. Extension officers only.
+// The officer's name is taken from their verified profile.
+const TICKET_STATUSES = ['pending', 'in_review', 'resolved'] as const;
 
-  const ticketIndex = escalationQueue.findIndex((t) => t.id === id);
-  if (ticketIndex === -1) {
+app.patch('/api/escalations/:id', requireRole('extension_officer'), (req: Request, res: Response) => {
+  const { id } = req.params;
+  const { status, officerFeedback } = req.body;
+
+  const ticket = escalationQueue.find((t) => t.id === id);
+  if (!ticket) {
     res.status(404).json({ error: 'Escalation ticket not found' });
     return;
   }
 
-  const ticket = escalationQueue[ticketIndex];
-  if (status) ticket.status = status;
-  if (officerFeedback !== undefined) ticket.officerFeedback = officerFeedback;
-  if (officerName !== undefined) ticket.officerName = officerName;
+  if (status !== undefined) {
+    if (!TICKET_STATUSES.includes(status)) {
+      res.status(400).json({ error: 'Invalid status' });
+      return;
+    }
+    ticket.status = status;
+  }
+  if (officerFeedback !== undefined) {
+    ticket.officerFeedback = String(officerFeedback).slice(0, 2000);
+  }
+
+  const officer = req.user!;
+  ticket.officerName = officer.epa ? `${officer.name} (${officer.epa})` : officer.name;
   ticket.reviewedAt = new Date().toISOString();
 
   res.json(ticket);
 });
 
-// GET /api/farmer-cases: Retrieve cases submitted by a specific farmer's phone number
-app.get('/api/farmer-cases', (req: Request, res: Response) => {
-  const { phone } = req.query;
-  if (!phone || typeof phone !== 'string') {
-    res.status(400).json({ error: 'Farmer phone number is required' });
-    return;
-  }
-
-  // Normalize phone for comparison
-  const cleanQuery = phone.replace(/[^0-9]/g, '');
-  const matched = escalationQueue.filter((t) => {
-    const cleanTicketPhone = t.farmerPhone.replace(/[^0-9]/g, '');
-    return cleanTicketPhone.includes(cleanQuery) || cleanQuery.includes(cleanTicketPhone);
-  });
-
-  res.json(matched);
-});
-
-// Farmer Accounts Store with Password Authentication
-interface FarmerAccount {
-  name: string;
-  phone: string;
-  district: string;
-  epa?: string;
-  password: string;
-  consentGiven: boolean;
-  createdAt: string;
-}
-
-const farmerAccounts = new Map<string, FarmerAccount>();
-
-// Seed initial demo farmer accounts for testing
-farmerAccounts.set('265888234567', {
-  name: 'Chifundo Banda',
-  phone: '+265 888 234 567',
-  district: 'Kasungu',
-  epa: 'Chulu EPA',
-  password: 'farmer2026',
-  consentGiven: true,
-  createdAt: new Date().toISOString(),
-});
-
-farmerAccounts.set('265999456789', {
-  name: 'Esnart Phiri',
-  phone: '+265 999 456 789',
-  district: 'Lilongwe',
-  epa: 'Nambuma EPA',
-  password: 'farmer2026',
-  consentGiven: true,
-  createdAt: new Date().toISOString(),
-});
-
-// POST /api/farmer/register: Register a new farmer with a password
-app.post('/api/farmer/register', (req: Request, res: Response) => {
-  const { name, phone, district, epa, password, consentGiven } = req.body;
-
-  if (!name || !phone || !password) {
-    res.status(400).json({ error: 'Name, phone number, and password are required' });
-    return;
-  }
-
-  const cleanPhone = phone.replace(/[^0-9]/g, '');
-  if (!cleanPhone || cleanPhone.length < 7) {
-    res.status(400).json({ error: 'Please enter a valid phone number' });
-    return;
-  }
-
-  if (password.length < 4) {
-    res.status(400).json({ error: 'Password must be at least 4 characters long' });
-    return;
-  }
-
-  const account: FarmerAccount = {
-    name: name.trim(),
-    phone: phone.trim(),
-    district: (district || 'Lilongwe').trim(),
-    epa: (epa || 'Local EPA').trim(),
-    password: password.trim(),
-    consentGiven: consentGiven !== false,
-    createdAt: new Date().toISOString(),
-  };
-
-  farmerAccounts.set(cleanPhone, account);
-
-  res.status(201).json({
-    success: true,
-    farmer: {
-      name: account.name,
-      phone: account.phone,
-      district: account.district,
-      epa: account.epa,
-      consentGiven: account.consentGiven,
-      createdAt: account.createdAt,
-    },
-  });
-});
-
-// POST /api/farmer/login: Authenticate an existing farmer with phone & password
-app.post('/api/farmer/login', (req: Request, res: Response) => {
-  const { phone, password } = req.body;
-
-  if (!phone || !password) {
-    res.status(400).json({ error: 'Phone number and password are required' });
-    return;
-  }
-
-  const cleanPhone = phone.replace(/[^0-9]/g, '');
-  const account = farmerAccounts.get(cleanPhone);
-
-  if (!account) {
-    res.status(401).json({
-      error: 'Account not found for this phone number. Please sign up first.',
-    });
-    return;
-  }
-
-  if (account.password !== password.trim()) {
-    res.status(401).json({
-      error: 'Incorrect password. Please try again.',
-    });
-    return;
-  }
-
-  res.json({
-    success: true,
-    farmer: {
-      name: account.name,
-      phone: account.phone,
-      district: account.district,
-      epa: account.epa,
-      consentGiven: account.consentGiven,
-      createdAt: account.createdAt,
-    },
-  });
-});
-
-// POST /api/officer/verify-pin: Separate PIN-based login for Extension Officers (EPA / AEDO)
-const VALID_OFFICER_PINS = ['2026', '1234', '7788', 'AEDO2026'];
-
-app.post('/api/officer/verify-pin', (req: Request, res: Response) => {
-  const { pin, officerName, district, epa } = req.body;
-  if (!pin || typeof pin !== 'string') {
-    res.status(400).json({ error: 'PIN is required' });
-    return;
-  }
-
-  const isValid = VALID_OFFICER_PINS.includes(pin.trim());
-  if (!isValid) {
-    res.status(401).json({ error: 'Invalid Extension Officer PIN. Contact your EPA supervisor or use default PIN: 2026.' });
-    return;
-  }
-
-  res.json({
-    success: true,
-    officer: {
-      name: officerName || 'Agricultural Extension Development Officer (AEDO)',
-      district: district || 'Lilongwe',
-      epa: epa || 'Central EPA',
-      role: 'extension_officer',
-      authenticatedAt: new Date().toISOString(),
-    },
-  });
+// GET /api/farmer-cases: The signed-in user's own cases only.
+app.get('/api/farmer-cases', requireAuth, (req: Request, res: Response) => {
+  const uid = req.user!.uid;
+  res.json(escalationQueue.filter((t) => t.userId === uid));
 });
 
 // POST /api/chat: Multi-turn Gemini chatbot with Search Grounding
-app.post('/api/chat', async (req: Request, res: Response) => {
+app.post('/api/chat', optionalAuth, async (req: Request, res: Response) => {
   try {
     const {
       messages,
       model = 'gemini-3.8-flash',
       enableSearch = false,
       language = 'en',
-      userRole = 'farmer',
     } = req.body;
+    // Role comes from the verified sign-in, never from the request body
+    const userRole = req.user?.role === 'extension_officer' ? 'extension_officer' : 'farmer';
 
     if (!Array.isArray(messages) || messages.length === 0) {
       res.status(400).json({ error: 'Messages array is required' });

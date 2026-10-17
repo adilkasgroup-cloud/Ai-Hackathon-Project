@@ -8,7 +8,9 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // ---------------------------------------------------------------
     // Helper functions
+    // ---------------------------------------------------------------
     function isSignedIn() {
       return request.auth != null;
     }
@@ -25,31 +27,89 @@ service cloud.firestore {
       return resource.data;
     }
 
+    // The caller's role is ALWAYS read from their server-side profile document,
+    // never from anything the client sends.
+    function callerRole() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
+    }
+
+    function hasProfile() {
+      return isSignedIn() &&
+        exists(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+
     function isExtensionOfficer() {
-      return isSignedIn() && 
-        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'extension_officer';
+      return hasProfile() && callerRole() == 'extension_officer';
+    }
+
+    function isAdmin() {
+      return hasProfile() && callerRole() == 'admin';
     }
 
     function isValidId(id) {
       return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
     }
 
-    // Users Collection
+    // ---------------------------------------------------------------
+    // Users: role is set to 'farmer' at sign-up and can only be changed by an admin.
+    // 'admin' can never be granted from the app - set it by hand in the Firebase console.
+    // ---------------------------------------------------------------
     match /users/{userId} {
-      allow get: if isOwner(userId) || isExtensionOfficer();
-      allow list: if isExtensionOfficer();
+      allow get: if isOwner(userId) || isAdmin();
+      allow list: if isAdmin();
+
+      // Everyone starts as a farmer. Officer access goes through /officerRequests.
       allow create: if isOwner(userId) &&
         isValidId(userId) &&
         incoming().uid == userId &&
-        incoming().role in ['farmer', 'extension_officer'];
-      allow update: if isOwner(userId) &&
-        incoming().uid == existing().uid &&
-        incoming().role == existing().role;
+        incoming().role == 'farmer';
+
+      allow update: if
+        // The owner may edit their details but never their uid or role
+        (isOwner(userId) &&
+          incoming().uid == existing().uid &&
+          incoming().role == existing().role)
+        ||
+        // An admin may ONLY change role (and the timestamp), and only to farmer/officer
+        (isAdmin() &&
+          incoming().uid == existing().uid &&
+          incoming().diff(existing()).affectedKeys().hasOnly(['role', 'updatedAt']) &&
+          incoming().role in ['farmer', 'extension_officer']);
+
       allow delete: if false;
     }
 
-    // Diagnoses Collection
+    // ---------------------------------------------------------------
+    // Officer requests: a user asks to become an extension officer; an admin approves.
+    // ---------------------------------------------------------------
+    match /officerRequests/{userId} {
+      allow get: if isOwner(userId) || isAdmin();
+      allow list: if isAdmin();
+
+      allow create: if isOwner(userId) &&
+        isValidId(userId) &&
+        incoming().uid == userId &&
+        incoming().status == 'pending';
+
+      allow update: if
+        // Owner can edit their details while it is still pending
+        (isOwner(userId) &&
+          existing().status == 'pending' &&
+          incoming().status == 'pending' &&
+          incoming().uid == existing().uid)
+        ||
+        // Admin can only decide the request
+        (isAdmin() &&
+          incoming().uid == existing().uid &&
+          incoming().diff(existing()).affectedKeys().hasOnly(['status', 'reviewedAt', 'reviewedBy']) &&
+          incoming().status in ['approved', 'rejected']);
+
+      allow delete: if false;
+    }
+
+    // ---------------------------------------------------------------
+    // Diagnoses (a farmer's saved history)
+    // ---------------------------------------------------------------
     match /diagnoses/{diagnosisId} {
       allow get: if isSignedIn() && (existing().userId == request.auth.uid || isExtensionOfficer());
       allow list: if isSignedIn() && (resource.data.userId == request.auth.uid || isExtensionOfficer());
@@ -58,16 +118,16 @@ service cloud.firestore {
       allow delete: if isSignedIn() && existing().userId == request.auth.uid;
     }
 
-    // Escalations Collection (Extension Officer Queue)
+    // ---------------------------------------------------------------
+    // Escalations (extension officer queue)
+    // Farmers see only their own; officers see all; only officers can update.
+    // ---------------------------------------------------------------
     match /escalations/{ticketId} {
-      allow get: if isSignedIn();
-      allow list: if isSignedIn();
-      allow create: if isSignedIn();
-      allow update: if isSignedIn() && (
-        isExtensionOfficer() || 
-        (resource.data.userId == request.auth.uid && incoming().userId == existing().userId)
-      );
-      allow delete: if false; // Preserve field extension audit history
+      allow get: if isSignedIn() && (existing().userId == request.auth.uid || isExtensionOfficer());
+      allow list: if isSignedIn() && (resource.data.userId == request.auth.uid || isExtensionOfficer());
+      allow create: if isSignedIn() && incoming().userId == request.auth.uid;
+      allow update: if isExtensionOfficer() && incoming().userId == existing().userId;
+      allow delete: if false; // Preserve audit history
     }
 
     // Connection test document

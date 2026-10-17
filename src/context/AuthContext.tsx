@@ -1,9 +1,54 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
-import { User, onAuthStateChanged, signInWithPopup, signOut as fbSignOut } from 'firebase/auth';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import {
+  User,
+  onAuthStateChanged,
+  signInWithPopup,
+  signInWithRedirect,
+  signOut as fbSignOut,
+} from 'firebase/auth';
+import { doc, onSnapshot, writeBatch } from 'firebase/firestore';
 import { auth, db, googleProvider, testConnection } from '../lib/firebase';
 
+/**
+ * How access works
+ * ----------------
+ * - Identity: Firebase Auth (Google).
+ * - Role: stored on users/{uid}.role in Firestore. It is set to 'farmer' at sign-up and
+ *   CANNOT be changed by the user (see firestore.rules). Only an admin can promote a user
+ *   to 'extension_officer', and 'admin' is set by hand in the Firebase console.
+ * - There is no role switcher: whatever the server says your role is, that is what you get.
+ */
+
+export type AppRole = 'farmer' | 'extension_officer' | 'admin';
+export type UserRole = 'guest' | AppRole;
+
+export interface UserProfile {
+  uid: string;
+  email: string;
+  displayName: string;
+  phone: string;
+  district: string;
+  epa: string;
+  role: AppRole;
+  consentGiven: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface OfficerRequest {
+  uid: string;
+  status: 'pending' | 'approved' | 'rejected';
+  displayName: string;
+  email: string;
+  phone: string;
+  district: string;
+  epa: string;
+  requestedAt: string;
+}
+
+// Views kept for the components that read these shapes
 export interface FarmerProfile {
+  uid: string;
   name: string;
   phone: string;
   district: string;
@@ -13,268 +58,252 @@ export interface FarmerProfile {
 }
 
 export interface OfficerProfile {
+  uid: string;
   name: string;
   district: string;
   epa: string;
   role: 'extension_officer';
-  authenticatedAt: string;
 }
 
+export interface NewAccountInput {
+  /** 'extension_officer' creates a normal account PLUS a request an admin must approve. */
+  requestedRole: 'farmer' | 'extension_officer';
+  name: string;
+  phone: string;
+  district: string;
+  epa: string;
+  consentGiven: boolean;
+}
+
+export type AuthView = 'signin' | 'signup' | null;
+
 interface AuthContextType {
-  // Access state
+  firebaseUser: User | null;
+  profile: UserProfile | null;
   farmerProfile: FarmerProfile | null;
   officerProfile: OfficerProfile | null;
-  userRole: 'guest' | 'farmer' | 'extension_officer';
-  firebaseUser: User | null;
+  officerRequest: OfficerRequest | null;
+  userRole: UserRole;
+  /** Signed in with Google but has not finished creating their account yet */
+  needsOnboarding: boolean;
   loading: boolean;
 
-  // Actions
-  registerFarmer: (name: string, phone: string, district: string, epa?: string, password?: string, consentGiven?: boolean) => Promise<FarmerProfile>;
-  loginFarmerWithPassword: (phone: string, password: string) => Promise<FarmerProfile>;
-  loginOfficerWithPin: (pin: string, name: string, district: string, epa: string) => Promise<boolean>;
-  logoutFarmer: () => void;
-  logoutOfficer: () => void;
-  logoutAll: () => void;
+  signInWithGoogle: () => Promise<void>;
+  createAccount: (input: NewAccountInput) => Promise<void>;
+  signOut: () => Promise<void>;
+  /** Authorization header for calls to our own /api routes */
+  getAuthHeaders: () => Promise<Record<string, string>>;
 
-  // Modals & UI triggers
-  isAuthModalOpen: boolean;
-  setIsAuthModalOpen: (open: boolean) => void;
-  authModalInitialTab: 'farmer' | 'officer';
-  openAuthModal: (tab?: 'farmer' | 'officer') => void;
+  authView: AuthView;
+  openAuth: (view?: 'signin' | 'signup') => void;
+  closeAuth: () => void;
 }
 
 const AuthContext = createContext<AuthContextType>({
+  firebaseUser: null,
+  profile: null,
   farmerProfile: null,
   officerProfile: null,
+  officerRequest: null,
   userRole: 'guest',
-  firebaseUser: null,
+  needsOnboarding: false,
   loading: true,
-  registerFarmer: async () => ({} as FarmerProfile),
-  loginFarmerWithPassword: async () => ({} as FarmerProfile),
-  loginOfficerWithPin: async () => false,
-  logoutFarmer: () => {},
-  logoutOfficer: () => {},
-  logoutAll: () => {},
-  isAuthModalOpen: false,
-  setIsAuthModalOpen: () => {},
-  authModalInitialTab: 'farmer',
-  openAuthModal: () => {},
+  signInWithGoogle: async () => {},
+  createAccount: async () => {},
+  signOut: async () => {},
+  getAuthHeaders: async () => ({}),
+  authView: null,
+  openAuth: () => {},
+  closeAuth: () => {},
 });
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [firebaseUser, setFirebaseUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState<boolean>(true);
-  const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
-  const [authModalInitialTab, setAuthModalInitialTab] = useState<'farmer' | 'officer'>('farmer');
+  const [authReady, setAuthReady] = useState(false);
+  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [profileReady, setProfileReady] = useState(false);
+  const [officerRequest, setOfficerRequest] = useState<OfficerRequest | null>(null);
+  const [authView, setAuthView] = useState<AuthView>(null);
 
-  // Lightweight farmer profile (no password needed)
-  const [farmerProfile, setFarmerProfile] = useState<FarmerProfile | null>(() => {
-    try {
-      const saved = localStorage.getItem('crop_doctor_farmer');
-      return saved ? JSON.parse(saved) : null;
-    } catch {
-      return null;
-    }
-  });
-
-  // Officer profile (PIN authenticated)
-  const [officerProfile, setOfficerProfile] = useState<OfficerProfile | null>(() => {
-    try {
-      const saved = sessionStorage.getItem('crop_doctor_officer');
-      return saved ? JSON.parse(saved) : null;
-    } catch {
-      return null;
-    }
-  });
-
+  // 1. Who is signed in?
   useEffect(() => {
     testConnection();
-
-    const unsubscribe = onAuthStateChanged(auth, async (u) => {
+    const unsubscribe = onAuthStateChanged(auth, (u) => {
       setFirebaseUser(u);
-      setLoading(false);
+      setAuthReady(true);
+      if (!u) {
+        setProfile(null);
+        setOfficerRequest(null);
+        setProfileReady(true);
+      } else {
+        setProfileReady(false);
+      }
     });
-
     return () => unsubscribe();
   }, []);
 
-  // Determine current active role
-  const userRole: 'guest' | 'farmer' | 'extension_officer' = officerProfile
-    ? 'extension_officer'
-    : farmerProfile
-    ? 'farmer'
-    : 'guest';
-
-  // Farmer Sign-up with Password
-  const registerFarmer = async (
-    name: string,
-    phone: string,
-    district: string,
-    epa?: string,
-    password?: string,
-    consentGiven: boolean = true
-  ): Promise<FarmerProfile> => {
-    // Call server endpoint to store farmer account securely
-    try {
-      const res = await fetch('/api/farmer/register', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: name.trim(),
-          phone: phone.trim(),
-          district: district.trim(),
-          epa: epa ? epa.trim() : 'Local EPA',
-          password: password || 'farmer2026',
-          consentGiven,
-        }),
-      });
-
-      if (!res.ok) {
-        const errData = await res.json();
-        throw new Error(errData.error || 'Failed to register farmer account');
+  // 2. What is their role? Live from Firestore, so approvals and removals apply immediately.
+  const uid = firebaseUser?.uid;
+  useEffect(() => {
+    if (!uid) return;
+    const unsub = onSnapshot(
+      doc(db, 'users', uid),
+      (snap) => {
+        setProfile(snap.exists() ? (snap.data() as UserProfile) : null);
+        setProfileReady(true);
+      },
+      (err) => {
+        console.warn('Could not load profile:', err);
+        setProfile(null);
+        setProfileReady(true);
       }
+    );
+    return () => unsub();
+  }, [uid]);
 
-      const data = await res.json();
-      const profile: FarmerProfile = data.farmer;
-      localStorage.setItem('crop_doctor_farmer', JSON.stringify(profile));
-      setFarmerProfile(profile);
-
-      // Save to Firestore for user tracking
-      try {
-        const cleanPhone = phone.replace(/[^0-9]/g, '');
-        if (cleanPhone) {
-          await setDoc(doc(db, 'users', `farmer_${cleanPhone}`), {
-            uid: `farmer_${cleanPhone}`,
-            displayName: name,
-            phone,
-            district,
-            epa: epa || '',
-            role: 'farmer',
-            consentGiven,
-            updatedAt: new Date().toISOString(),
-          });
-        }
-      } catch (e) {
-        console.warn('Firestore optional sync note:', e);
-      }
-
-      return profile;
-    } catch (err: any) {
-      console.warn('Register error, fallback to local:', err);
-      // Fallback
-      const profile: FarmerProfile = {
-        name: name.trim(),
-        phone: phone.trim(),
-        district: district.trim(),
-        epa: epa ? epa.trim() : 'Local EPA',
-        consentGiven,
-        createdAt: new Date().toISOString(),
-      };
-      localStorage.setItem('crop_doctor_farmer', JSON.stringify(profile));
-      setFarmerProfile(profile);
-      return profile;
+  // 3. Any pending request to become an extension officer?
+  const role = profile?.role;
+  useEffect(() => {
+    if (!uid || role !== 'farmer') {
+      setOfficerRequest(null);
+      return;
     }
-  };
+    const unsub = onSnapshot(
+      doc(db, 'officerRequests', uid),
+      (snap) => setOfficerRequest(snap.exists() ? (snap.data() as OfficerRequest) : null),
+      () => setOfficerRequest(null)
+    );
+    return () => unsub();
+  }, [uid, role]);
 
-  // Farmer Login with Password
-  const loginFarmerWithPassword = async (
-    phone: string,
-    password: string
-  ): Promise<FarmerProfile> => {
-    const res = await fetch('/api/farmer/login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ phone: phone.trim(), password: password.trim() }),
-    });
+  const userRole: UserRole = profile?.role ?? 'guest';
 
-    if (!res.ok) {
-      const errData = await res.json();
-      throw new Error(errData.error || 'Invalid phone number or password');
-    }
+  const farmerProfile = useMemo<FarmerProfile | null>(
+    () =>
+      profile && profile.role === 'farmer'
+        ? {
+            uid: profile.uid,
+            name: profile.displayName,
+            phone: profile.phone,
+            district: profile.district,
+            epa: profile.epa,
+            consentGiven: profile.consentGiven,
+            createdAt: profile.createdAt,
+          }
+        : null,
+    [profile]
+  );
 
-    const data = await res.json();
-    const profile: FarmerProfile = data.farmer;
-    localStorage.setItem('crop_doctor_farmer', JSON.stringify(profile));
-    setFarmerProfile(profile);
-    return profile;
-  };
+  const officerProfile = useMemo<OfficerProfile | null>(
+    () =>
+      profile && profile.role === 'extension_officer'
+        ? {
+            uid: profile.uid,
+            name: profile.displayName,
+            district: profile.district,
+            epa: profile.epa,
+            role: 'extension_officer',
+          }
+        : null,
+    [profile]
+  );
 
-  // Extension Officer PIN-based Login
-  const loginOfficerWithPin = async (
-    pin: string,
-    name: string,
-    district: string,
-    epa: string
-  ): Promise<boolean> => {
+  const loading = !authReady || !profileReady;
+  const needsOnboarding = !loading && !!firebaseUser && !profile;
+
+  const signInWithGoogle = useCallback(async () => {
+    googleProvider.setCustomParameters({ prompt: 'select_account' });
     try {
-      const res = await fetch('/api/officer/verify-pin', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ pin, officerName: name, district, epa }),
-      });
-
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || 'Invalid PIN');
-      }
-
-      const data = await res.json();
-      const profile: OfficerProfile = {
-        name: data.officer.name,
-        district: data.officer.district,
-        epa: data.officer.epa,
-        role: 'extension_officer',
-        authenticatedAt: data.officer.authenticatedAt,
-      };
-
-      sessionStorage.setItem('crop_doctor_officer', JSON.stringify(profile));
-      setOfficerProfile(profile);
-      return true;
+      await signInWithPopup(auth, googleProvider);
     } catch (err: any) {
+      // Some phone browsers block popups: fall back to a full-page redirect
+      if (err?.code === 'auth/popup-blocked') {
+        await signInWithRedirect(auth, googleProvider);
+        return;
+      }
+      if (err?.code === 'auth/popup-closed-by-user' || err?.code === 'auth/cancelled-popup-request') {
+        return; // user changed their mind, not an error
+      }
       throw err;
     }
-  };
+  }, []);
 
-  const logoutFarmer = () => {
-    localStorage.removeItem('crop_doctor_farmer');
-    setFarmerProfile(null);
-  };
+  const createAccount = useCallback(
+    async (input: NewAccountInput) => {
+      const user = auth.currentUser;
+      if (!user) throw new Error('Please sign in with Google first.');
+      const now = new Date().toISOString();
+      const name = input.name.trim();
+      const phone = input.phone.trim();
+      const district = input.district.trim();
+      const epa = input.epa.trim();
 
-  const logoutOfficer = () => {
-    sessionStorage.removeItem('crop_doctor_officer');
-    setOfficerProfile(null);
-  };
+      const batch = writeBatch(db);
 
-  const logoutAll = async () => {
-    logoutFarmer();
-    logoutOfficer();
-    try {
-      await fbSignOut(auth);
-    } catch {}
-  };
+      // Everyone starts as a farmer. The rules reject any other role here.
+      batch.set(doc(db, 'users', user.uid), {
+        uid: user.uid,
+        email: user.email || '',
+        displayName: name,
+        phone,
+        district,
+        epa,
+        role: 'farmer',
+        consentGiven: input.consentGiven,
+        createdAt: now,
+        updatedAt: now,
+      });
 
-  const openAuthModal = (tab: 'farmer' | 'officer' = 'farmer') => {
-    setAuthModalInitialTab(tab);
-    setIsAuthModalOpen(true);
-  };
+      // Officers also file a request that an admin must approve
+      if (input.requestedRole === 'extension_officer') {
+        batch.set(doc(db, 'officerRequests', user.uid), {
+          uid: user.uid,
+          status: 'pending',
+          displayName: name,
+          email: user.email || '',
+          phone,
+          district,
+          epa,
+          requestedAt: now,
+        });
+      }
+
+      await batch.commit();
+      // onSnapshot picks up the new profile on its own
+    },
+    []
+  );
+
+  const signOut = useCallback(async () => {
+    await fbSignOut(auth);
+  }, []);
+
+  const getAuthHeaders = useCallback(async (): Promise<Record<string, string>> => {
+    const token = await auth.currentUser?.getIdToken();
+    return token ? { Authorization: `Bearer ${token}` } : {};
+  }, []);
+
+  const openAuth = useCallback((view: 'signin' | 'signup' = 'signin') => setAuthView(view), []);
+  const closeAuth = useCallback(() => setAuthView(null), []);
 
   return (
     <AuthContext.Provider
       value={{
+        firebaseUser,
+        profile,
         farmerProfile,
         officerProfile,
+        officerRequest,
         userRole,
-        firebaseUser,
+        needsOnboarding,
         loading,
-        registerFarmer,
-        loginOfficerWithPin,
-        logoutFarmer,
-        logoutOfficer,
-        logoutAll,
-        isAuthModalOpen,
-        setIsAuthModalOpen,
-        authModalInitialTab,
-        openAuthModal,
+        signInWithGoogle,
+        createAccount,
+        signOut,
+        getAuthHeaders,
+        authView,
+        openAuth,
+        closeAuth,
       }}
     >
       {children}

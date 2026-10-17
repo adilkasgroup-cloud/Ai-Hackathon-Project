@@ -17,7 +17,8 @@ import {
   CheckCircle2,
 } from 'lucide-react';
 import { DiagnosisResult, EscalationTicket, Language } from '../types/crop';
-import { TRANSLATIONS, MALAWI_DISTRICTS } from '../data/translations';
+import { TRANSLATIONS } from '../data/translations';
+import { CONSENT_TEXT } from '../data/consent';
 
 interface EscalationModalProps {
   isOpen: boolean;
@@ -35,80 +36,27 @@ export const EscalationModal: React.FC<EscalationModalProps> = ({
   onSubmitted,
 }) => {
   const t = TRANSLATIONS[currentLanguage];
-  const { farmerProfile, registerFarmer, loginFarmerWithPassword } = useAuth();
+  const { farmerProfile, userRole, firebaseUser, openAuth, getAuthHeaders } = useAuth();
 
-  // Login / Registration form states (used if not yet logged in)
-  const [escalationAuthMode, setEscalationAuthMode] = useState<'login' | 'signup'>('login');
-  const [loginName, setLoginName] = useState('');
-  const [loginPhone, setLoginPhone] = useState('+265 888 234 567');
-  const [loginPassword, setLoginPassword] = useState('farmer2026');
-  const [loginDistrict, setLoginDistrict] = useState('Lilongwe');
-  const [loginEpa, setLoginEpa] = useState('');
-  const [loginConsent, setLoginConsent] = useState(true);
-  const [loginError, setLoginError] = useState('');
-  const [isLoggingIn, setIsLoggingIn] = useState(false);
-
-  // Send form states (used once logged in, information is taken from profile)
+  // Send form states (name, phone and district come from the signed-in profile)
   const [fieldDescription, setFieldDescription] = useState('');
   const [village, setVillage] = useState('');
-  const [consentChecked, setConsentChecked] = useState(true);
+  const [consentChecked, setConsentChecked] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState('');
   const [submittedTicket, setSubmittedTicket] = useState<EscalationTicket | null>(null);
 
-  // Sync state if farmer profile changes or modal opens
+  // Reset when the modal closes
   useEffect(() => {
-    if (farmerProfile) {
-      setLoginName(farmerProfile.name);
-      setLoginPhone(farmerProfile.phone);
-      setLoginDistrict(farmerProfile.district);
-      setLoginEpa(farmerProfile.epa || '');
-    }
     if (!isOpen) {
       setSubmittedTicket(null);
       setFieldDescription('');
+      setSubmitError('');
+      setConsentChecked(false);
     }
-  }, [farmerProfile, isOpen]);
+  }, [isOpen]);
 
   if (!isOpen) return null;
-
-  // Handle Farmer Login/Registration within the modal with password
-  const handleFarmerLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoginError('');
-
-    if (!loginPhone.trim()) {
-      setLoginError('Please enter your phone number.');
-      return;
-    }
-
-    if (!loginPassword.trim()) {
-      setLoginError('Please enter your password.');
-      return;
-    }
-
-    setIsLoggingIn(true);
-    try {
-      if (escalationAuthMode === 'login') {
-        await loginFarmerWithPassword(loginPhone, loginPassword);
-      } else {
-        if (!loginName.trim()) {
-          setLoginError('Please enter your full name.');
-          setIsLoggingIn(false);
-          return;
-        }
-        if (!loginConsent) {
-          setLoginError('Please agree to the privacy consent to share your crop photo with extension officers.');
-          setIsLoggingIn(false);
-          return;
-        }
-        await registerFarmer(loginName, loginPhone, loginDistrict, loginEpa, loginPassword, loginConsent);
-      }
-    } catch (err: any) {
-      setLoginError(err?.message || 'Authentication failed. Please verify your credentials or sign up.');
-    } finally {
-      setIsLoggingIn(false);
-    }
-  };
 
   // Handle Final Submission of Escalation to Officer
   const handleSubmit = async (e: React.FormEvent) => {
@@ -120,45 +68,32 @@ export const EscalationModal: React.FC<EscalationModalProps> = ({
       return;
     }
 
+    setSubmitError('');
     setIsSubmitting(true);
     try {
       const response = await fetch('/api/escalate', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...(await getAuthHeaders()) },
+        // Name, phone, district and EPA are added by the server from your verified profile
         body: JSON.stringify({
           diagnosis,
-          farmerName: farmerProfile.name,
-          farmerPhone: farmerProfile.phone,
-          district: farmerProfile.district,
-          epa: farmerProfile.epa || 'Local EPA',
           village,
           additionalNotes: fieldDescription,
         }),
       });
 
       if (!response.ok) {
-        throw new Error('Failed to submit escalation');
+        const data = await response.json().catch(() => ({}));
+        throw new Error(data.error || 'Failed to submit escalation');
       }
 
       const ticket: EscalationTicket = await response.json();
       setSubmittedTicket(ticket);
       onSubmitted(ticket);
-    } catch (err) {
+    } catch (err: any) {
+      // Do NOT pretend it was sent: the farmer must know it did not reach an officer
       console.error(err);
-      const fallbackTicket: EscalationTicket = {
-        id: 'esc-local-' + Date.now(),
-        diagnosis,
-        farmerName: farmerProfile.name,
-        farmerPhone: farmerProfile.phone,
-        district: farmerProfile.district,
-        epa: farmerProfile.epa || 'Local EPA',
-        village,
-        additionalNotes: fieldDescription,
-        status: 'pending',
-        createdAt: new Date().toISOString(),
-      };
-      setSubmittedTicket(fallbackTicket);
-      onSubmitted(fallbackTicket);
+      setSubmitError(err?.message || 'Could not send your case. Please check your connection and try again.');
     } finally {
       setIsSubmitting(false);
     }
@@ -179,12 +114,6 @@ export const EscalationModal: React.FC<EscalationModalProps> = ({
     ].join('\n');
 
     return `https://wa.me/?text=${encodeURIComponent(text)}`;
-  };
-
-  const consentText = {
-    en: 'Consent: Your phone number and crop photos will be shared solely with local agricultural extension officers to diagnose your field and text you guidance. They will never be shared with third parties or used for advertising.',
-    ny: 'Chilolezo: Nambala yanu ya foni ndi zithunzi za mbeu zanu zidzagawidwa kwa alangizi a za ulimi (AEDO) okha kuti akuthandizeni pa vuto lanu la m\'munda. Sizidzagulitsidwa kapena kuperekedwa kwina.',
-    tum: 'Chizomerezgo: Nambala yinu ya foni na vithuzi vya vyomela vigawikenge ku ŵalara ŵa vya ulimi (AEDO) pera kuti ŵamovwirani. Vingaperekeka ku ŵanthu ŵanyake yayi.',
   };
 
   return (
@@ -213,7 +142,7 @@ export const EscalationModal: React.FC<EscalationModalProps> = ({
 
         {/* Content Body */}
         <div className="p-5 space-y-4 flex-1">
-          {/* STEP 1: If not logged in, ask the user to log in / sign up first */}
+          {/* Not a signed-in farmer: ask them to sign in / sign up first */}
           {!farmerProfile ? (
             <div className="space-y-4 animate-in fade-in duration-200">
               <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 flex items-start gap-3">
@@ -222,129 +151,54 @@ export const EscalationModal: React.FC<EscalationModalProps> = ({
                 </div>
                 <div>
                   <h4 className="text-xs font-bold text-amber-950 uppercase tracking-wider">
-                    Farmer Sign In Required
+                    {userRole === 'extension_officer' || userRole === 'admin' ? 'Farmer accounts only' : 'Sign in required'}
                   </h4>
                   <p className="text-xs text-amber-900 mt-1 leading-relaxed">
-                    To send this case to an Extension Officer and receive their advice, please enter your details below. 
-                    <strong> No password needed</strong> — your profile will be saved so you won't have to enter it again!
+                    {userRole === 'extension_officer' || userRole === 'admin'
+                      ? 'Cases can only be sent by farmer accounts. Extension officers review cases from the Cases & Replies queue.'
+                      : firebaseUser
+                      ? 'You are signed in with Google but have not finished creating your account. It only takes a minute.'
+                      : 'To send this case to an Extension Officer and receive their advice, please sign in or create a free account. Your diagnosis above stays free for everyone.'}
                   </p>
                 </div>
               </div>
 
-              {loginError && (
-                <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-800 flex items-start gap-2">
-                  <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
-                  <span>{loginError}</span>
-                </div>
-              )}
-
-              <form onSubmit={handleFarmerLogin} className="space-y-3.5">
-                {/* Farmer Name */}
-                <div>
-                  <label className="block text-xs font-bold text-stone-800 mb-1 flex items-center gap-1.5">
-                    <User className="w-3.5 h-3.5 text-emerald-700" />
-                    <span>Your Full Name (Dzina Lanu):</span>
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={loginName}
-                    onChange={(e) => setLoginName(e.target.value)}
-                    placeholder="e.g. Kondwani Phiri"
-                    className="w-full text-xs px-3.5 py-2.5 bg-stone-50 border border-stone-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:bg-white focus:outline-none"
-                  />
-                </div>
-
-                {/* Phone / WhatsApp */}
-                <div>
-                  <label className="block text-xs font-bold text-stone-800 mb-1 flex items-center gap-1.5">
-                    <Phone className="w-3.5 h-3.5 text-emerald-700" />
-                    <span>Phone / WhatsApp (+265):</span>
-                  </label>
-                  <input
-                    type="tel"
-                    required
-                    value={loginPhone}
-                    onChange={(e) => setLoginPhone(e.target.value)}
-                    placeholder="+265 888 123 456"
-                    className="w-full text-xs px-3.5 py-2.5 bg-stone-50 border border-stone-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:bg-white focus:outline-none font-mono"
-                  />
-                  <p className="text-[11px] text-stone-500 mt-1">
-                    Extension officers will text or WhatsApp advice to this number.
-                  </p>
-                </div>
-
-                {/* District & EPA */}
-                <div className="grid grid-cols-2 gap-2.5">
-                  <div>
-                    <label className="block text-xs font-semibold text-stone-700 mb-1">
-                      District (Boma):
-                    </label>
-                    <select
-                      value={loginDistrict}
-                      onChange={(e) => setLoginDistrict(e.target.value)}
-                      className="w-full text-xs px-2.5 py-2.5 bg-stone-50 border border-stone-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              <div className="flex items-center justify-end gap-2.5 pt-1">
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="px-4 py-2.5 text-xs font-semibold text-stone-600 hover:bg-stone-100 rounded-xl transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+                {userRole !== 'extension_officer' && userRole !== 'admin' && (
+                  <>
+                    {!firebaseUser && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          onClose();
+                          openAuth('signin');
+                        }}
+                        className="px-4 py-2.5 text-xs font-bold text-emerald-800 border border-emerald-300 hover:bg-emerald-50 rounded-xl transition-colors cursor-pointer"
+                      >
+                        Sign in
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onClose();
+                        openAuth('signup');
+                      }}
+                      className="px-5 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs rounded-xl shadow-xs flex items-center gap-2 transition-all cursor-pointer"
                     >
-                      {MALAWI_DISTRICTS.map((d) => (
-                        <option key={d} value={d}>
-                          {d}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-semibold text-stone-700 mb-1">
-                      EPA (Optional):
-                    </label>
-                    <input
-                      type="text"
-                      value={loginEpa}
-                      onChange={(e) => setLoginEpa(e.target.value)}
-                      placeholder="e.g. Chulu EPA"
-                      className="w-full text-xs px-2.5 py-2.5 bg-stone-50 border border-stone-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                    />
-                  </div>
-                </div>
-
-                {/* Consent checkbox */}
-                <div className="p-3 bg-stone-50 border border-stone-200 rounded-2xl">
-                  <label className="flex items-start gap-2.5 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={loginConsent}
-                      onChange={(e) => setLoginConsent(e.target.checked)}
-                      className="mt-0.5 w-4 h-4 text-emerald-600 rounded border-stone-400 focus:ring-emerald-500"
-                    />
-                    <div className="text-[11px] text-stone-700 leading-relaxed font-medium">
-                      <span className="font-bold text-stone-900 block mb-0.5">Privacy Consent:</span>
-                      {currentLanguage === 'ny'
-                        ? consentText.ny
-                        : currentLanguage === 'tum'
-                        ? consentText.tum
-                        : consentText.en}
-                    </div>
-                  </label>
-                </div>
-
-                <div className="pt-2 flex items-center justify-end gap-2.5">
-                  <button
-                    type="button"
-                    onClick={onClose}
-                    className="px-4 py-2.5 text-xs font-semibold text-stone-600 hover:bg-stone-100 rounded-xl transition-colors cursor-pointer"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={isLoggingIn}
-                    className="px-6 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs rounded-xl shadow-xs flex items-center gap-2 transition-all cursor-pointer disabled:opacity-50"
-                  >
-                    <span>{isLoggingIn ? 'Logging in...' : 'Sign In & Continue'}</span>
-                    <ArrowRight className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-              </form>
+                      <span>{firebaseUser ? 'Finish sign-up' : 'Create account'}</span>
+                      <ArrowRight className="w-3.5 h-3.5" />
+                    </button>
+                  </>
+                )}
+              </div>
             </div>
           ) : submittedTicket ? (
             /* Success confirmation */
@@ -488,14 +342,17 @@ export const EscalationModal: React.FC<EscalationModalProps> = ({
                   />
                   <div className="text-[11px] text-amber-950 leading-relaxed font-medium">
                     <span className="font-bold block text-amber-900 mb-0.5">Privacy & Diagnostic Consent:</span>
-                    {currentLanguage === 'ny'
-                      ? consentText.ny
-                      : currentLanguage === 'tum'
-                      ? consentText.tum
-                      : consentText.en}
+                    {CONSENT_TEXT[currentLanguage]}
                   </div>
                 </label>
               </div>
+
+              {submitError && (
+                <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-800 flex items-start gap-2">
+                  <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+                  <span>{submitError}</span>
+                </div>
+              )}
 
               {/* Action buttons */}
               <div className="pt-2 flex items-center justify-end gap-2.5">

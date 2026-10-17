@@ -28,7 +28,7 @@ interface CropChatbotProps {
 }
 
 export const CropChatbot: React.FC<CropChatbotProps> = ({ currentLanguage }) => {
-  const { userRole } = useAuth();
+  const { userRole, getAuthHeaders } = useAuth();
   const [messages, setMessages] = useState<ChatMessage[]>(() => [
     {
       id: 'init-msg',
