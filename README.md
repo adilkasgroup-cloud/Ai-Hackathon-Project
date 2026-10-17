@@ -1,100 +1,83 @@
 # Crop Doctor Malawi
 
-AI-powered crop disease and pest diagnosis for smallholder farmers in Malawi, in **English, Chichewa and Tumbuka**.
+## Problem
 
-A farmer photographs a sick leaf, stem or cob. The app identifies the most likely disease or pest, shows how confident it is, and gives practical, safe next steps. When the AI is unsure, the farmer can send the case to a human **extension officer**.
+Smallholder farmers in Malawi can lose a large part of their maize or tobacco harvest when a pest or disease is identified too late. Agricultural extension officers are few, so most farmers have no quick way to get expert help. Advice that does exist is often not available in Chichewa or Tumbuka, the languages many farmers speak best.
 
-> Built for an AI hackathon. Crop Doctor is a decision-support tool, not a replacement for an agricultural expert. Always follow product labels and local extension advice.
+## Solution
 
-## The problem
+Crop Doctor lets a farmer photograph a sick leaf, stem or cob and get an AI diagnosis in seconds, in **English, Chichewa or Tumbuka**. The app names the most likely disease or pest, shows how confident it is, and gives practical, safe next steps and prevention tips. When the AI is unsure, the farmer can send the case to a human **extension officer** and read the reply in the app.
 
-A farmer can lose a large part of a maize or tobacco harvest when a pest or disease is spotted too late. Extension officers are few, and advice is often not available in the farmer's own language.
+Safety is built in: advice starts with low-risk practices, the app never gives pesticide doses, and low-confidence results always point the farmer to an expert.
+
+> Crop Doctor is a decision-support tool, not a replacement for an agricultural expert. Always follow product labels and local extension advice.
 
 ## Features
 
-1. **Photo diagnosis (free, no account needed).** Upload a crop photo and get the likely problem, a confidence score, treatment steps and prevention tips, in the farmer's language.
-2. **Safety first.** Advice starts with low-risk practices (scouting, hand-picking, crop rotation). The app never gives pesticide doses, and a safety filter checks every result. Low confidence or unclear photos always point the farmer to an expert.
-3. **Send to an extension officer.** Farmers with an account can send uncertain cases to an officer and see the reply in **My Case Replies**.
+- **Free photo diagnosis, no account needed.** Upload a crop photo and get the likely problem, a confidence score, treatment steps and prevention tips.
+- **Three languages.** English, Chichewa and Tumbuka, switchable from the header.
+- **Safety filter.** Every result is checked before it is shown: dose and mixing instructions are removed, a licensed agro-dealer reminder is added, and low confidence triggers expert referral.
+- **Send to an extension officer.** Signed-in farmers can escalate uncertain cases and see the officer's reply under "My Case Replies".
+- **Officer portal.** Approved officers see a queue of cases (photo, AI summary, confidence, farmer's district) and reply to farmers.
+- **Secure accounts and roles.** Sign in with Google, email and password, or phone number (SMS code). Everyone starts as a farmer, officers must be approved by an admin, and users cannot change their own role.
+- **AI crop chat.** Ask follow-up farming questions, with optional Google Search grounding.
+- **Bioscience workbench.** Reference profiles of common Malawian crop pests and diseases.
+- **Demo mode.** Works with sample cases when no API key is set.
 
-Also included: an AI crop chat assistant and a bioscience pathogen workbench.
+## Tech Stack
 
-## How the AI works
+- **Frontend:** React 19, TypeScript, Vite, Tailwind CSS
+- **Backend:** Node.js with Express (`server.ts`)
+- **Auth and database:** Firebase Authentication and Cloud Firestore, with security rules
+- **AI:** Google Gemini API via the `@google/genai` SDK
 
-- The photo is sent to the **Gemini API** from the app's own server (the API key never reaches the browser).
-- Gemini returns a structured result: crop, problem, category, severity, confidence, steps, prevention and a safety note, written in the chosen language.
-- A safety layer (`src/utils/safetyFilter.ts`) then checks the result before it is shown: it removes dose-like instructions and forces expert referral when confidence is low.
-- With no API key set, the app runs in **Demo mode** with sample cases, so it can always be tried.
+## AI / API Usage
 
-## Accounts and roles
+- **Gemini vision (`gemini-3.8-flash`)** powers photo diagnosis. The server sends the crop photo and the chosen language to Gemini, which returns structured JSON: crop, problem, category, severity, confidence score, treatment steps, prevention and a safety note, written in the farmer's language.
+- **Gemini chat** answers follow-up questions in the AI Chat tab. The model can be switched between `gemini-3.8-flash`, `gemini-3.1-flash-lite` and `gemini-4-argon`, and **Google Search grounding** can be turned on to cite sources.
+- **Safety layer (`src/utils/safetyFilter.ts`).** Not AI. Rules applied to every Gemini result to strip dosages and force escalation when confidence is low.
+- **Firebase Authentication.** Verifies identity. The server checks each user's token and reads their role from Firestore before allowing officer-only actions (`serverAuth.ts`).
+- The Gemini API key stays on the server and is never sent to the browser.
 
-Anyone can diagnose a crop without signing up. An account is only needed to send cases to an officer and see replies.
+## Setup Instructions
 
-- **Sign in / sign up** with Google, email and password, or phone number (SMS code).
-- **Farmer** is the default role for everyone.
-- **Extension officer** accounts must be **approved by an administrator**. Choosing "Extension officer" at sign-up files a request; until approved, the person has farmer access.
-- **Admin** is set by hand in Firestore. It can never be granted from the app.
-- Users cannot change their own role. This is enforced in `firestore.rules` and again on the server (`serverAuth.ts`).
-
-## Tech stack
-
-React 19, TypeScript, Vite, Tailwind CSS, Express (Node), Firebase Authentication and Firestore, Google Gemini API.
-
-## Getting started
-
-You need [Bun](https://bun.sh) (or Node.js with npm) and a Firebase project.
-
-```bash
-git clone https://github.com/adilkasgroup-cloud/Ai-Hackathon-Project.git
-cd Ai-Hackathon-Project
-bun install
-```
-
-Create a `.env` file (see `.env.example`):
-
-```
-GEMINI_API_KEY="your-gemini-api-key"
-```
-
-Start the app:
-
-```bash
-bun run dev
-```
-
-Open http://localhost:3000. Without a Gemini key the app runs in Demo mode.
+1. **Clone the repository**
+   ```bash
+   git clone https://github.com/adilkasgroup-cloud/Ai-Hackathon-Project.git
+   cd Ai-Hackathon-Project
+   ```
+2. **Install dependencies** (needs [Bun](https://bun.sh), or Node.js with npm)
+   ```bash
+   bun install
+   ```
+3. **Add environment variables.** Copy `.env.example` to `.env` and fill in your own values. **Do not commit real keys.** `.env` is already in `.gitignore`.
+   ```
+   GEMINI_API_KEY="your-gemini-api-key"
+   ```
+   Also put your Firebase web config in `firebase-applet-config.json`, and in the Firebase console:
+   - Enable **Google**, **Email/Password** and **Phone** under Authentication > Sign-in method.
+   - Add your domain under Authentication > Settings > Authorized domains, and allow Malawi (+265) in the SMS region policy for phone sign-in.
+   - Publish the security rules: `firebase deploy --only firestore:rules` (or paste `firestore.rules` into the console).
+   - Create your first admin by setting `role` to `admin` on your own document in the `users` collection.
+4. **Run the app**
+   ```bash
+   bun run dev
+   ```
+   Open http://localhost:3000. Without a Gemini key the app runs in Demo mode.
 
 Other commands: `bun run lint` (type check) and `bun run build` (production build).
 
-## Firebase setup
+## Screenshots
 
-1. Put your Firebase web config in `firebase-applet-config.json`.
-2. In **Authentication > Sign-in method**, enable **Google**, **Email/Password** and **Phone**.
-3. In **Authentication > Settings > Authorized domains**, add the domain you deploy to. For phone sign-in, also allow Malawi (+265) under **SMS region policy**.
-4. Publish the security rules: `firebase deploy --only firestore:rules` (or paste `firestore.rules` into the Firebase console).
-5. Create your first admin by setting `role` to `admin` on your own document in the `users` collection.
+(Add images here)
 
-## Project structure
+<!--
+Suggested shots: photo upload screen, a diagnosis result in Chichewa,
+the sign in page, the "Send to extension officer" dialog, the officer queue.
+Save images in a /screenshots folder and link them like:
+![Diagnosis result](screenshots/diagnosis.png)
+-->
 
-```
-server.ts                 Express server: Gemini calls, escalation and chat APIs
-serverAuth.ts             Verifies Firebase tokens and enforces roles on the API
-firestore.rules           Database security rules (role locking)
-src/context/AuthContext   Sign-in, sign-up and role state
-src/components/           UI: photo upload, diagnosis result, officer portal, auth page
-src/utils/safetyFilter.ts Safety checks applied to every diagnosis
-src/data/                 Translations, sample cases and consent text
-```
+## Team Contributions
 
-## Limitations and next steps
-
-- Chichewa and Tumbuka text is AI-generated and should be **reviewed by native speakers** before real farmers rely on it.
-- Diagnosis from a single photo is uncertain. Many problems look alike, which is why confidence scores and officer escalation exist.
-- Ideas: SMS or WhatsApp delivery, offline support, outbreak maps for officers, and feeding officer corrections back to improve the AI.
-
-## Privacy
-
-The app stores the name, phone number, district and photos that users choose to submit, and only so an officer can respond about their crop. Users give consent when they create an account.
-
-## License
-
-No license has been chosen yet. Add one (for example MIT) before inviting contributions.
+- Name: role and what they built *(add your team members here)*
