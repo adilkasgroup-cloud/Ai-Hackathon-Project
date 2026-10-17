@@ -133,11 +133,14 @@ export const ExtensionOfficerPortal: React.FC<ExtensionOfficerPortalProps> = ({
         </div>
 
         <div>
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-50 border border-amber-200 text-amber-900 text-xs font-bold mb-2">
+            <span>Restricted Access</span>
+          </div>
           <h2 className="text-xl font-bold text-stone-900 tracking-tight">
-            Extension Officer Portal (PIN Protected)
+            Officer Cases & Replies Portal
           </h2>
           <p className="text-xs text-stone-500 mt-1.5 max-w-sm mx-auto leading-relaxed">
-            Extension officers log in separately with a 4-digit staff PIN to review farmer cases, investigate outbreaks, and send official advice.
+            Submitted farmer crop cases and officer advisory replies are strictly accessible to verified Agricultural Extension Development Officers (AEDO).
           </p>
         </div>
 
@@ -150,13 +153,14 @@ export const ExtensionOfficerPortal: React.FC<ExtensionOfficerPortalProps> = ({
         <form onSubmit={handleQuickPinLogin} className="space-y-3.5 text-left max-w-sm mx-auto">
           <div>
             <label className="block text-xs font-bold text-stone-700 mb-1">
-              Officer Name:
+              Extension Officer Name & Title:
             </label>
             <input
               type="text"
               required
               value={quickOfficerName}
               onChange={(e) => setQuickOfficerName(e.target.value)}
+              placeholder="e.g. AEDO J. Mwale"
               className="w-full text-xs px-3.5 py-2.5 bg-stone-50 border border-stone-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500"
             />
           </div>
@@ -183,13 +187,16 @@ export const ExtensionOfficerPortal: React.FC<ExtensionOfficerPortalProps> = ({
             className="w-full py-3 bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs rounded-xl shadow-xs transition-colors cursor-pointer flex items-center justify-center gap-1.5"
           >
             <Lock className="w-3.5 h-3.5" />
-            <span>Unlock Extension Queue</span>
+            <span>Unlock Officer Cases & Replies</span>
           </button>
         </form>
 
-        <p className="text-[11px] text-stone-400">
-          Smallholder farmers do not need a PIN and can freely use photo diagnosis anytime.
-        </p>
+        <div className="p-3 bg-stone-50 rounded-2xl border border-stone-200 text-left text-[11px] text-stone-500 space-y-1">
+          <p className="font-semibold text-stone-700">Note for farmers:</p>
+          <p>
+            Farmers do not have access to the officer case registry. When an extension officer reviews your case, their official recommendations are texted to you directly on WhatsApp or SMS.
+          </p>
+        </div>
       </div>
     );
   }

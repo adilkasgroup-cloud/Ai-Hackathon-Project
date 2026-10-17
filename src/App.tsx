@@ -13,7 +13,6 @@ import { ExtensionOfficerPortal } from './components/ExtensionOfficerPortal';
 import { ExplanationModal } from './components/ExplanationModal';
 import { CropChatbot } from './components/CropChatbot';
 import { BioscienceWorkbench } from './components/BioscienceWorkbench';
-import { FarmerCasesReplies } from './components/FarmerCasesReplies';
 import { AuthModal } from './components/AuthModal';
 import { DiagnosisResult as DiagnosisType, EscalationTicket, Language, SamplePhotoCase } from './types/crop';
 import { TRANSLATIONS } from './data/translations';
@@ -87,6 +86,13 @@ function CropDoctorApp() {
     checkConfig();
     fetchPendingCount();
   }, []);
+
+  // Ensure cases & replies view is only accessible when logged into an officer account
+  useEffect(() => {
+    if (activeTab === 'extension' && !officerProfile) {
+      setActiveTab('diagnose');
+    }
+  }, [activeTab, officerProfile]);
 
   // Save diagnosis to farm history if farmer profile exists
   const saveDiagnosisToHistory = async (diag: DiagnosisType) => {
@@ -274,24 +280,12 @@ function CropDoctorApp() {
           <CropChatbot currentLanguage={currentLanguage} />
         )}
 
-        {/* Tab 3: My Cases & Extension Officer Replies (Farmer Tracker) */}
-        {activeTab === 'farmer_cases' && (
-          <FarmerCasesReplies
-            currentLanguage={currentLanguage}
-            onOpenLightweightSignUp={() => openAuthModal('farmer')}
-            onSelectCaseToView={(diag) => {
-              setCurrentDiagnosis(diag);
-              setActiveTab('diagnose');
-            }}
-          />
-        )}
-
-        {/* Tab 4: Bioscience & Pathogen Genomics Workbench */}
+        {/* Tab 3: Bioscience & Pathogen Genomics Workbench */}
         {activeTab === 'science' && (
           <BioscienceWorkbench currentLanguage={currentLanguage} />
         )}
 
-        {/* Tab 5: Extension Officer Queue (PIN Protected) */}
+        {/* Tab 4: Extension Officer Cases & Replies Queue (Officer Account Protected) */}
         {activeTab === 'extension' && (
           <ExtensionOfficerPortal
             currentLanguage={currentLanguage}
@@ -328,6 +322,7 @@ function CropDoctorApp() {
         isOpen={isAuthModalOpen}
         onClose={() => setIsAuthModalOpen(false)}
         currentLanguage={currentLanguage}
+        onOfficerLoginSuccess={() => setActiveTab('extension')}
       />
 
       {/* Footer */}
@@ -347,13 +342,17 @@ function CropDoctorApp() {
             >
               AI Chat
             </button>
-            <span>•</span>
-            <button
-              onClick={() => setActiveTab('farmer_cases')}
-              className="hover:text-emerald-700 transition-colors cursor-pointer"
-            >
-              My Cases & Replies
-            </button>
+            {officerProfile && (
+              <>
+                <span>•</span>
+                <button
+                  onClick={() => setActiveTab('extension')}
+                  className="hover:text-emerald-700 font-semibold text-emerald-800 transition-colors cursor-pointer"
+                >
+                  Cases & Replies ({pendingCount})
+                </button>
+              </>
+            )}
             <span>•</span>
             <button
               onClick={() => setActiveTab('science')}
@@ -366,7 +365,7 @@ function CropDoctorApp() {
               onClick={() => openAuthModal('officer')}
               className="hover:text-emerald-700 transition-colors cursor-pointer font-semibold text-emerald-800"
             >
-              {officerProfile ? 'Officer Mode (PIN Active)' : 'Officer Login (PIN)'}
+              {officerProfile ? '🧑‍🌾 Officer Profile' : 'Officer Login (PIN)'}
             </button>
           </div>
         </div>

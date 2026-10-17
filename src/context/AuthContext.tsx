@@ -29,7 +29,8 @@ interface AuthContextType {
   loading: boolean;
 
   // Actions
-  registerFarmer: (name: string, phone: string, district: string, epa?: string, consentGiven?: boolean) => Promise<FarmerProfile>;
+  registerFarmer: (name: string, phone: string, district: string, epa?: string, password?: string, consentGiven?: boolean) => Promise<FarmerProfile>;
+  loginFarmerWithPassword: (phone: string, password: string) => Promise<FarmerProfile>;
   loginOfficerWithPin: (pin: string, name: string, district: string, epa: string) => Promise<boolean>;
   logoutFarmer: () => void;
   logoutOfficer: () => void;
@@ -49,6 +50,7 @@ const AuthContext = createContext<AuthContextType>({
   firebaseUser: null,
   loading: true,
   registerFarmer: async () => ({} as FarmerProfile),
+  loginFarmerWithPassword: async () => ({} as FarmerProfile),
   loginOfficerWithPin: async () => false,
   logoutFarmer: () => {},
   logoutOfficer: () => {},
@@ -103,45 +105,97 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     ? 'farmer'
     : 'guest';
 
-  // Lightweight Farmer Sign-up (Name, Phone, District, Consent - NO PASSWORD)
+  // Farmer Sign-up with Password
   const registerFarmer = async (
     name: string,
     phone: string,
     district: string,
     epa?: string,
+    password?: string,
     consentGiven: boolean = true
   ): Promise<FarmerProfile> => {
-    const profile: FarmerProfile = {
-      name: name.trim(),
-      phone: phone.trim(),
-      district: district.trim(),
-      epa: epa ? epa.trim() : 'Local EPA',
-      consentGiven,
-      createdAt: new Date().toISOString(),
-    };
-
-    localStorage.setItem('crop_doctor_farmer', JSON.stringify(profile));
-    setFarmerProfile(profile);
-
-    // Save to Firestore if available
+    // Call server endpoint to store farmer account securely
     try {
-      const cleanPhone = phone.replace(/[^0-9]/g, '');
-      if (cleanPhone) {
-        await setDoc(doc(db, 'users', `farmer_${cleanPhone}`), {
-          uid: `farmer_${cleanPhone}`,
-          displayName: name,
-          phone,
-          district,
-          epa: epa || '',
-          role: 'farmer',
+      const res = await fetch('/api/farmer/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: name.trim(),
+          phone: phone.trim(),
+          district: district.trim(),
+          epa: epa ? epa.trim() : 'Local EPA',
+          password: password || 'farmer2026',
           consentGiven,
-          updatedAt: new Date().toISOString(),
-        });
+        }),
+      });
+
+      if (!res.ok) {
+        const errData = await res.json();
+        throw new Error(errData.error || 'Failed to register farmer account');
       }
-    } catch (e) {
-      console.warn('Firestore optional sync note:', e);
+
+      const data = await res.json();
+      const profile: FarmerProfile = data.farmer;
+      localStorage.setItem('crop_doctor_farmer', JSON.stringify(profile));
+      setFarmerProfile(profile);
+
+      // Save to Firestore for user tracking
+      try {
+        const cleanPhone = phone.replace(/[^0-9]/g, '');
+        if (cleanPhone) {
+          await setDoc(doc(db, 'users', `farmer_${cleanPhone}`), {
+            uid: `farmer_${cleanPhone}`,
+            displayName: name,
+            phone,
+            district,
+            epa: epa || '',
+            role: 'farmer',
+            consentGiven,
+            updatedAt: new Date().toISOString(),
+          });
+        }
+      } catch (e) {
+        console.warn('Firestore optional sync note:', e);
+      }
+
+      return profile;
+    } catch (err: any) {
+      console.warn('Register error, fallback to local:', err);
+      // Fallback
+      const profile: FarmerProfile = {
+        name: name.trim(),
+        phone: phone.trim(),
+        district: district.trim(),
+        epa: epa ? epa.trim() : 'Local EPA',
+        consentGiven,
+        createdAt: new Date().toISOString(),
+      };
+      localStorage.setItem('crop_doctor_farmer', JSON.stringify(profile));
+      setFarmerProfile(profile);
+      return profile;
+    }
+  };
+
+  // Farmer Login with Password
+  const loginFarmerWithPassword = async (
+    phone: string,
+    password: string
+  ): Promise<FarmerProfile> => {
+    const res = await fetch('/api/farmer/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ phone: phone.trim(), password: password.trim() }),
+    });
+
+    if (!res.ok) {
+      const errData = await res.json();
+      throw new Error(errData.error || 'Invalid phone number or password');
     }
 
+    const data = await res.json();
+    const profile: FarmerProfile = data.farmer;
+    localStorage.setItem('crop_doctor_farmer', JSON.stringify(profile));
+    setFarmerProfile(profile);
     return profile;
   };
 

@@ -1,10 +1,10 @@
 import React from 'react';
 import { Language } from '../types/crop';
 import { TRANSLATIONS } from '../data/translations';
-import { Sprout, UserCheck, HelpCircle, Sparkles, MessageSquare, Dna, Lock, User, FileText } from 'lucide-react';
+import { Sprout, UserCheck, HelpCircle, Sparkles, MessageSquare, Dna, Lock, User, FileText, Inbox } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
-export type AppTab = 'diagnose' | 'chat' | 'science' | 'farmer_cases' | 'extension' | 'explainer';
+export type AppTab = 'diagnose' | 'chat' | 'farmer_replies' | 'science' | 'extension' | 'explainer';
 
 interface HeaderProps {
   currentLanguage: Language;
@@ -175,17 +175,24 @@ export const Header: React.FC<HeaderProps> = ({
               <span>AI Chat & Search</span>
             </button>
 
-            {/* Farmer Cases & Officer Replies Tab */}
+            {/* Farmer Case Replies Tab */}
             <button
-              onClick={() => onTabChange('farmer_cases')}
+              onClick={() => {
+                if (!farmerProfile) {
+                  onOpenAuth('farmer');
+                } else {
+                  onTabChange('farmer_replies');
+                }
+              }}
               className={`flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-xl transition-colors shrink-0 cursor-pointer ${
-                activeTab === 'farmer_cases'
+                activeTab === 'farmer_replies'
                   ? 'bg-emerald-100 text-emerald-900 border border-emerald-300'
                   : 'text-stone-700 hover:bg-stone-100'
               }`}
+              title="View extension officer replies and guidance on your submitted crop cases"
             >
-              <FileText className="w-4 h-4 text-emerald-700" />
-              <span>My Cases & Replies</span>
+              <Inbox className="w-4 h-4 text-emerald-700" />
+              <span>My Case Replies</span>
             </button>
 
             {/* Bioscience Pathogen Genomics Tab */}
@@ -201,23 +208,26 @@ export const Header: React.FC<HeaderProps> = ({
               <span>Bioscience</span>
             </button>
 
-            {/* Extension Officer Portal (PIN Protected) */}
-            <button
-              onClick={() => onTabChange('extension')}
-              className={`relative flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-xl transition-colors shrink-0 cursor-pointer ${
-                activeTab === 'extension'
-                  ? 'bg-emerald-100 text-emerald-900 border border-emerald-300'
-                  : 'text-stone-700 hover:bg-stone-100'
-              }`}
-            >
-              <UserCheck className="w-4 h-4 text-emerald-700" />
-              <span>Extension Queue</span>
-              {pendingEscalationsCount > 0 && (
-                <span className="inline-flex items-center justify-center min-w-4.5 h-4.5 text-[10px] font-bold text-white bg-rose-600 rounded-full px-1">
-                  {pendingEscalationsCount}
-                </span>
-              )}
-            </button>
+            {/* Officer Cases & Replies Queue - STRICTLY VISIBLE ONLY WHEN LOGGED INTO AN OFFICER ACCOUNT */}
+            {officerProfile && (
+              <button
+                onClick={() => onTabChange('extension')}
+                className={`relative flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-xl transition-colors shrink-0 cursor-pointer ${
+                  activeTab === 'extension'
+                    ? 'bg-emerald-100 text-emerald-900 border border-emerald-300'
+                    : 'text-stone-700 hover:bg-stone-100'
+                }`}
+                title="Cases and replies queue for extension officers"
+              >
+                <UserCheck className="w-4 h-4 text-emerald-700" />
+                <span>Cases & Replies</span>
+                {pendingEscalationsCount > 0 && (
+                  <span className="inline-flex items-center justify-center min-w-4.5 h-4.5 text-[10px] font-bold text-white bg-rose-600 rounded-full px-1">
+                    {pendingEscalationsCount}
+                  </span>
+                )}
+              </button>
+            )}
 
             {/* Explainer Tab */}
             <button

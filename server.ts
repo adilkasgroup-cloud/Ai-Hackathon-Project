@@ -434,6 +434,124 @@ app.get('/api/farmer-cases', (req: Request, res: Response) => {
   res.json(matched);
 });
 
+// Farmer Accounts Store with Password Authentication
+interface FarmerAccount {
+  name: string;
+  phone: string;
+  district: string;
+  epa?: string;
+  password: string;
+  consentGiven: boolean;
+  createdAt: string;
+}
+
+const farmerAccounts = new Map<string, FarmerAccount>();
+
+// Seed initial demo farmer accounts for testing
+farmerAccounts.set('265888234567', {
+  name: 'Chifundo Banda',
+  phone: '+265 888 234 567',
+  district: 'Kasungu',
+  epa: 'Chulu EPA',
+  password: 'farmer2026',
+  consentGiven: true,
+  createdAt: new Date().toISOString(),
+});
+
+farmerAccounts.set('265999456789', {
+  name: 'Esnart Phiri',
+  phone: '+265 999 456 789',
+  district: 'Lilongwe',
+  epa: 'Nambuma EPA',
+  password: 'farmer2026',
+  consentGiven: true,
+  createdAt: new Date().toISOString(),
+});
+
+// POST /api/farmer/register: Register a new farmer with a password
+app.post('/api/farmer/register', (req: Request, res: Response) => {
+  const { name, phone, district, epa, password, consentGiven } = req.body;
+
+  if (!name || !phone || !password) {
+    res.status(400).json({ error: 'Name, phone number, and password are required' });
+    return;
+  }
+
+  const cleanPhone = phone.replace(/[^0-9]/g, '');
+  if (!cleanPhone || cleanPhone.length < 7) {
+    res.status(400).json({ error: 'Please enter a valid phone number' });
+    return;
+  }
+
+  if (password.length < 4) {
+    res.status(400).json({ error: 'Password must be at least 4 characters long' });
+    return;
+  }
+
+  const account: FarmerAccount = {
+    name: name.trim(),
+    phone: phone.trim(),
+    district: (district || 'Lilongwe').trim(),
+    epa: (epa || 'Local EPA').trim(),
+    password: password.trim(),
+    consentGiven: consentGiven !== false,
+    createdAt: new Date().toISOString(),
+  };
+
+  farmerAccounts.set(cleanPhone, account);
+
+  res.status(201).json({
+    success: true,
+    farmer: {
+      name: account.name,
+      phone: account.phone,
+      district: account.district,
+      epa: account.epa,
+      consentGiven: account.consentGiven,
+      createdAt: account.createdAt,
+    },
+  });
+});
+
+// POST /api/farmer/login: Authenticate an existing farmer with phone & password
+app.post('/api/farmer/login', (req: Request, res: Response) => {
+  const { phone, password } = req.body;
+
+  if (!phone || !password) {
+    res.status(400).json({ error: 'Phone number and password are required' });
+    return;
+  }
+
+  const cleanPhone = phone.replace(/[^0-9]/g, '');
+  const account = farmerAccounts.get(cleanPhone);
+
+  if (!account) {
+    res.status(401).json({
+      error: 'Account not found for this phone number. Please sign up first.',
+    });
+    return;
+  }
+
+  if (account.password !== password.trim()) {
+    res.status(401).json({
+      error: 'Incorrect password. Please try again.',
+    });
+    return;
+  }
+
+  res.json({
+    success: true,
+    farmer: {
+      name: account.name,
+      phone: account.phone,
+      district: account.district,
+      epa: account.epa,
+      consentGiven: account.consentGiven,
+      createdAt: account.createdAt,
+    },
+  });
+});
+
 // POST /api/officer/verify-pin: Separate PIN-based login for Extension Officers (EPA / AEDO)
 const VALID_OFFICER_PINS = ['2026', '1234', '7788', 'AEDO2026'];
 
