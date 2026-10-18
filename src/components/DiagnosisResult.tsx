@@ -158,11 +158,7 @@ export const DiagnosisResult: React.FC<DiagnosisResultProps> = ({
             <div className="space-y-2 flex-1">
               <div>
                 <h4 className="text-sm font-bold text-rose-950">
-                  {currentLanguage === 'ny'
-                    ? 'Kutumiza kwa Katswiri wa za Ulimi (Chitsimikizo N\'chochepa)'
-                    : currentLanguage === 'tum'
-                    ? 'Kufumba kwa Mulara wa vya Ulimi (Chitsimikizgo Chili Pasi)'
-                    : 'Human Extension Officer Review Required'}
+                  {'Human Extension Officer Review Required'}
                 </h4>
                 <p className="text-xs text-rose-900 mt-1 leading-relaxed">
                   {diagnosis.escalationReason || t.escalationRequiredBanner}
@@ -223,7 +219,7 @@ export const DiagnosisResult: React.FC<DiagnosisResultProps> = ({
                 </span>
               </div>
 
-              {/* Problem Names (Local Language + English) */}
+              {/* Problem names */}
               <div className="space-y-1">
                 <span className="text-[11px] font-bold text-stone-600 uppercase tracking-wider">
                   {t.primaryDiagnosis}
@@ -238,17 +234,6 @@ export const DiagnosisResult: React.FC<DiagnosisResultProps> = ({
                 )}
               </div>
             </div>
-
-            {/* Translation human review badge if Chichewa or Tumbuka */}
-            {diagnosis.translationNeedsHumanReview && (
-              <div className="mt-4 p-2.5 bg-amber-50/80 border border-amber-200 rounded-xl text-[11px] text-amber-900 flex items-start gap-2">
-                <AlertTriangle className="w-3.5 h-3.5 text-amber-700 shrink-0 mt-0.5" />
-                <div className="leading-tight">
-                  <span className="font-bold">{t.translationReviewBadge}:</span>{' '}
-                  <span>{t.translationReviewNotice}</span>
-                </div>
-              </div>
-            )}
           </div>
         </div>
 

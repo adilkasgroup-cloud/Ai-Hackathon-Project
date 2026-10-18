@@ -61,29 +61,15 @@ export function applySafetyRules(result: DiagnosisResult): DiagnosisResult {
   if (
     result.category !== 'healthy' &&
     sanitizedChemical &&
-    !sanitizedChemical.toLowerCase().includes('agro-dealer') &&
-    !sanitizedChemical.toLowerCase().includes('sitolo') &&
-    !sanitizedChemical.toLowerCase().includes('mankhwala ovomerezeka')
+    !sanitizedChemical.toLowerCase().includes('agro-dealer')
   ) {
-    if (result.language === 'ny') {
-      sanitizedChemical += ' Gwiritsani ntchito mankhwala ovomerezeka ochokera ku sitolo yovomerezeka (Agro-dealer monga Farmers World kapena ATC) ndipo tsatirani malangizo a pa chikalata cha paketi mosamalitsa. Osapereka kapena kuyeza mankhwala popanda kuwerenga paketi.';
-    } else if (result.language === 'tum') {
-      sanitizedChemical += ' Mukhale maso kugwiliska ntchito munkhwala wakuzomerezgeka kufuma ku sitolo ya vyakurya (Agro-dealer) ndipo lekani kusintha masiku panji mapimo ghakulembeka pa paketi.';
-    } else {
-      sanitizedChemical += ' Always buy registered crop protection products from a licensed agro-dealer (such as Farmers World, Agora, or ATC). Strictly follow the manufacturer label for exact application instructions and safety gear.';
-    }
+    sanitizedChemical += ' Always buy registered crop protection products from a licensed agro-dealer (such as Farmers World, Agora, or ATC). Strictly follow the manufacturer label for exact application instructions and safety gear.';
   }
 
   // Safety Warning check
   let safetyWarning = result.safetyWarning;
   if (!safetyWarning || safetyWarning.trim().length === 0) {
-    if (result.language === 'ny') {
-      safetyWarning = "CHENJEZO: Valani zoteteza kumaso, mkamwa, ndi m'manja popopera mankhwala alionse. Osathira mankhwala pafupi ndi zitsime za madzi, ana, kapena ziweto.";
-    } else if (result.language === 'tum') {
-      safetyWarning = 'CHENJEZGO: Vwalani vyakujivikilira pa maso na minwe para mukupopera munkhwala. Lekani kuthira munkhwala pafupi na maji ghakumwa, ŵana, panji viŵeto.';
-    } else {
-      safetyWarning = 'SAFETY NOTE: Wear protective gear (mask, gloves, boots) when handling any treatment. Keep away from water sources, children, and livestock. Never reuse chemical containers for food or water.';
-    }
+    safetyWarning = 'SAFETY NOTE: Wear protective gear (mask, gloves, boots) when handling any treatment. Keep away from water sources, children, and livestock. Never reuse chemical containers for food or water.';
   }
 
   // Determine Confidence Level
@@ -107,17 +93,9 @@ export function applySafetyRules(result: DiagnosisResult): DiagnosisResult {
 
   if (!escalationReason) {
     if (confidenceBelowThreshold) {
-      escalationReason = result.language === 'ny'
-        ? `Chitsimikizo ndi chochepa (${result.confidenceScore}%). Tikulimbikitsa kutumiza chithunzichi kwa Mlangizi wa za Ulimi kuti mupeze chithandizo chodalirika.`
-        : result.language === 'tum'
-        ? `Chitsimikizgo chili pasi (${result.confidenceScore}%). Tumizgani chithuzithuzi ichi kwa Mulara wa Vyaulimi kuti muwovwirike makora.`
-        : `AI confidence is below 70% (${result.confidenceScore}%). Human extension officer review is strongly advised before taking major action.`;
+      escalationReason = `AI confidence is below 70% (${result.confidenceScore}%). Human extension officer review is strongly advised before taking major action.`;
     } else if (isCriticalSeverity) {
-      escalationReason = result.language === 'ny'
-        ? 'Vuto ili litha kuwononga kwambiri zokolola mwamsanga. Lumikizanani ndi Mlangizi wa za Ulimi wanu.'
-        : result.language === 'tum'
-        ? 'Suzu iyi yingasakaza vyakurya vinandi mwaluŵiro. Phalirani Mulara wa Vyaulimi mwakwimikika.'
-        : 'This issue poses an immediate harvest-threatening risk. Direct consultation with your local agricultural officer is advised.';
+      escalationReason = 'This issue poses an immediate harvest-threatening risk. Direct consultation with your local agricultural officer is advised.';
     }
   }
 
@@ -130,6 +108,5 @@ export function applySafetyRules(result: DiagnosisResult): DiagnosisResult {
     requiresEscalation,
     escalationReason,
     rawDosagesRemovedCount: totalDosagesRemoved,
-    translationNeedsHumanReview: result.language !== 'en',
   };
 }

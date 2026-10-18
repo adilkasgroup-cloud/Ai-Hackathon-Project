@@ -430,7 +430,7 @@ export const ExtensionOfficerPortal: React.FC<ExtensionOfficerPortalProps> = ({
 
                   <div>
                     <label className="block text-[11px] font-semibold text-stone-600 mb-1">
-                      Official Feedback for Farmer (Chichewa / Tumbuka / English):
+                      Official Feedback for Farmer:
                     </label>
                     <textarea
                       rows={3}

@@ -2,11 +2,11 @@
 
 ## Problem
 
-Smallholder farmers in Malawi can lose a large part of their maize or tobacco harvest when a pest or disease is identified too late. Agricultural extension officers are few, so most farmers have no quick way to get expert help. Advice that does exist is often not available in Chichewa or Tumbuka, the languages many farmers speak best.
+Smallholder farmers in Malawi can lose a large part of their maize or tobacco harvest when a pest or disease is identified too late. Agricultural extension officers are few, so most farmers have no quick way to get expert help. Advice that does exist is often hard to reach for farmers in remote areas.
 
 ## Solution
 
-Crop Doctor lets a farmer photograph a sick leaf, stem or cob and get an AI diagnosis in seconds, in **English, Chichewa or Tumbuka**. The app names the most likely disease or pest, shows how confident it is, and gives practical, safe next steps and prevention tips. When the AI is unsure, the farmer can send the case to a human **extension officer** and read the reply in the app.
+Crop Doctor lets a farmer photograph a sick leaf, stem or cob and get an AI diagnosis in seconds. The app names the most likely disease or pest, shows how confident it is, and gives practical, safe next steps and prevention tips. When the AI is unsure, the farmer can send the case to a human **extension officer** and read the reply in the app.
 
 Safety is built in: advice starts with low-risk practices, the app never gives pesticide doses, and low-confidence results always point the farmer to an expert.
 
@@ -15,7 +15,6 @@ Safety is built in: advice starts with low-risk practices, the app never gives p
 ## Features
 
 - **Free photo diagnosis, no account needed.** Upload a crop photo and get the likely problem, a confidence score, treatment steps and prevention tips.
-- **Three languages.** English, Chichewa and Tumbuka, switchable from the header.
 - **Safety filter.** Every result is checked before it is shown: dose and mixing instructions are removed, a licensed agro-dealer reminder is added, and low confidence triggers expert referral.
 - **Send to an extension officer.** Signed-in farmers can escalate uncertain cases and see the officer's reply under "My Case Replies".
 - **Officer portal.** Approved officers see a queue of cases (photo, AI summary, confidence, farmer's district) and reply to farmers.
@@ -33,7 +32,7 @@ Safety is built in: advice starts with low-risk practices, the app never gives p
 
 ## AI / API Usage
 
-- **Gemini vision (`gemini-3.8-flash`)** powers photo diagnosis. The server sends the crop photo and the chosen language to Gemini, which returns structured JSON: crop, problem, category, severity, confidence score, treatment steps, prevention and a safety note, written in the farmer's language.
+- **Gemini vision (`gemini-3.8-flash`)** powers photo diagnosis. The server sends the crop photo to Gemini, which returns structured JSON: crop, problem, category, severity, confidence score, treatment steps, prevention and a safety note.
 - **Gemini chat** answers follow-up questions in the AI Chat tab. The model can be switched between `gemini-3.8-flash`, `gemini-3.1-flash-lite` and `gemini-4-argon`, and **Google Search grounding** can be turned on to cite sources.
 - **Safety layer (`src/utils/safetyFilter.ts`).** Not AI. Rules applied to every Gemini result to strip dosages and force escalation when confidence is low.
 - **Firebase Authentication.** Verifies identity. The server checks each user's token and reads their role from Firestore before allowing officer-only actions (`serverAuth.ts`).
@@ -72,7 +71,7 @@ Other commands: `bun run lint` (type check) and `bun run build` (production buil
 (Add images here)
 
 <!--
-Suggested shots: photo upload screen, a diagnosis result in Chichewa,
+Suggested shots: photo upload screen, a diagnosis result,
 the sign in page, the "Send to extension officer" dialog, the officer queue.
 Save images in a /screenshots folder and link them like:
 ![Diagnosis result](screenshots/diagnosis.png)
