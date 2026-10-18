@@ -139,11 +139,7 @@ export const FarmerCaseReplies: React.FC<FarmerCaseRepliesProps> = ({
           <div>
             <div className="flex items-center gap-2">
               <h2 className="text-lg sm:text-xl font-bold tracking-tight text-stone-900">
-                {currentLanguage === 'ny'
-                  ? 'Mayankho a Milandu Yanu'
-                  : currentLanguage === 'tum'
-                  ? 'Mazgo gha Milandu Yinu'
-                  : 'My Case Replies & Officer Guidance'}
+                {'My Case Replies & Officer Guidance'}
               </h2>
               <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200">
                 Logged In

@@ -1,4 +1,4 @@
-export type Language = 'en' | 'ny' | 'tum';
+export type Language = 'en';
 
 export type ConfidenceLevel = 'high' | 'medium' | 'low';
 
@@ -28,7 +28,6 @@ export interface DiagnosisResult {
   chemicalAdvisory: string; // Zero doses! Always directs to registered agro-dealer
   safetyWarning: string;
   language: Language;
-  translationNeedsHumanReview: boolean; // Flagged for Chichewa/Tumbuka verification
   timestamp: string;
   imageUrl: string;
   rawDosagesRemovedCount?: number;
@@ -54,11 +53,7 @@ export interface EscalationTicket {
 export interface SamplePhotoCase {
   id: string;
   crop: string;
-  cropChichewa: string;
-  cropTumbuka: string;
   title: string;
-  titleChichewa: string;
-  titleTumbuka: string;
   category: CropCategory;
   imageUrl: string;
   thumbnailUrl: string;

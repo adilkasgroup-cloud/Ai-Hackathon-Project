@@ -63,8 +63,7 @@ escalationQueue.push({
     ],
     chemicalAdvisory: 'Consult your local AEDO or registered agro-dealer for certified product. Strictly follow the package label.',
     safetyWarning: 'SAFETY NOTE: Wear protective gloves and face mask when handling crop chemicals.',
-    language: 'ny',
-    translationNeedsHumanReview: true,
+    language: 'en',
     timestamp: new Date(Date.now() - 3600000 * 4).toISOString(),
     imageUrl: 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="200" height="150"><rect width="200" height="150" fill="%233f5e2d"/><text x="15" y="75" fill="white" font-size="12">Maize Stalk Borer Case</text></svg>',
   },
@@ -116,8 +115,7 @@ escalationQueue.push({
     ],
     chemicalAdvisory: 'Visit licensed tobacco supply center (ATC or auction floor agro-dealer) for registered copper-based bactericide. Follow label strictly.',
     safetyWarning: 'SAFETY NOTE: Wash all hands, gumboots, and clothing after inspecting infected tobacco plots.',
-    language: 'ny',
-    translationNeedsHumanReview: true,
+    language: 'en',
     timestamp: new Date(Date.now() - 3600000 * 18).toISOString(),
     imageUrl: 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="200" height="150"><rect width="200" height="150" fill="%234a5d28"/><text x="15" y="75" fill="white" font-size="12">Tobacco Wildfire Case</text></svg>',
   },
@@ -143,7 +141,7 @@ app.get('/api/config', (req: Request, res: Response) => {
     model: 'gemini-3.8-flash',
     features: {
       photoDiagnosis: true,
-      languages: ['en', 'ny', 'tum'],
+      languages: ['en'],
       officerEscalation: true,
       zeroDoseSafetyEnforcement: true,
     },
@@ -165,13 +163,13 @@ app.post('/api/diagnose', async (req: Request, res: Response) => {
     // If no API key is provided, execute demo heuristic response
     if (!hasKey) {
       // Create a sensible simulated response based on cropHint or default to maize
-      const lang = (language === 'ny' || language === 'tum') ? language : 'en';
+      const lang: Language = 'en';
       const fallbackResult: DiagnosisResult = {
         id: 'diag-demo-' + Date.now(),
-        cropName: cropHint || (lang === 'ny' ? 'Chimanga' : lang === 'tum' ? 'Ngoma' : 'Maize'),
+        cropName: cropHint || 'Maize',
         category: 'pest',
         primaryDiagnosis: 'Fall Armyworm (Spodoptera frugiperda)',
-        localDiagnosisName: lang === 'ny' ? 'Mbozi ya Chiwawa (Buba)' : lang === 'tum' ? 'Nthuchi ya Chiwawa (Buba)' : 'Fall Armyworm',
+        localDiagnosisName: 'Fall Armyworm',
         confidenceScore: 89,
         confidenceLevel: 'high',
         visualObservations: [
@@ -182,13 +180,13 @@ app.post('/api/diagnose', async (req: Request, res: Response) => {
         differentialDiagnoses: [
           {
             name: 'African Maize Stalk Borer (Busseola fusca)',
-            localName: lang === 'ny' ? 'Kafadala' : 'Stalk Borer',
+            localName: 'Stalk Borer',
             probability: 32,
             distinguishingFeature: 'Produces tidy horizontal pinholes on expanding leaf blades.',
           },
           {
             name: 'Grasshopper Chewing Damage',
-            localName: lang === 'ny' ? 'Ziwala' : 'Grasshopper',
+            localName: 'Grasshopper',
             probability: 15,
             distinguishingFeature: 'Chews leaf margins from outside without whorl frass accumulation.',
           },
@@ -206,7 +204,6 @@ app.post('/api/diagnose', async (req: Request, res: Response) => {
         safetyWarning:
           'SAFETY NOTE: Always wear rubber gloves, face mask, and protective footwear when applying chemicals. Keep away from water sources, livestock, and children.',
         language: lang,
-        translationNeedsHumanReview: lang !== 'en',
         timestamp: new Date().toISOString(),
         imageUrl: imageBase64.startsWith('data:') ? imageBase64 : `data:${mimeType};base64,${imageBase64}`,
       };
@@ -231,7 +228,7 @@ app.post('/api/diagnose', async (req: Request, res: Response) => {
       ? imageBase64.split(';base64,')[1]
       : imageBase64;
 
-    const targetLangName = language === 'ny' ? 'Chichewa (Chinyanja)' : language === 'tum' ? 'Chitumbuka (Tumbuka)' : 'English';
+    const targetLangName = 'English';
 
     const systemInstruction = `
 You are the AI agronomist for "Crop Doctor Malawi", specialized in diagnosing crop diseases, pests, and deficiencies for smallholder farmers in Malawi (growing maize, tobacco, groundnuts, beans, cassava, sweet potatoes, and tomatoes).
@@ -239,8 +236,7 @@ You are the AI agronomist for "Crop Doctor Malawi", specialized in diagnosing cr
 CRITICAL RULES:
 1. Describe ONLY what is physically visible in the provided photo under 'visualObservations'. Do not assume symptoms not visible.
 2. The farmer's preferred language is ${targetLangName}.
-   - If language is 'ny' (Chichewa) or 'tum' (Chitumbuka), write all explanations, observations, cultural steps, chemical advisory, and safety warning in clear, natural, everyday words of that language. Also provide the English name in 'primaryDiagnosis' and the local translated name in 'localDiagnosisName'.
-   - If language is 'en', write in clear, straightforward English accessible to farmers.
+   - Write all explanations, observations, cultural steps, chemical advisory, and safety warning in clear, straightforward English accessible to farmers.
 3. ADVICE ORDER:
    - 'culturalSteps': Low-risk cultural practices MUST COME FIRST (scouting, hand-picking, rouging/removing infected plants, wood ash or sand in whorl, crop rotation, intercropping, field sanitation).
    - 'chemicalAdvisory': Mention chemicals ONLY as a later option if the infestation is severe.
@@ -337,8 +333,7 @@ Return valid JSON conforming to this structure:
       culturalSteps: Array.isArray(parsed.culturalSteps) ? parsed.culturalSteps : ['Regular field scouting', 'Rogueing infected material'],
       chemicalAdvisory: parsed.chemicalAdvisory || 'Consult a registered agro-dealer for certified protection products.',
       safetyWarning: parsed.safetyWarning || 'Wear protective equipment when handling chemicals.',
-      language: language as Language,
-      translationNeedsHumanReview: language !== 'en',
+      language: 'en',
       timestamp: new Date().toISOString(),
       imageUrl: imageBase64.startsWith('data:') ? imageBase64 : `data:${mimeType};base64,${imageBase64}`,
     };
@@ -463,7 +458,7 @@ app.post('/api/chat', optionalAuth, async (req: Request, res: Response) => {
 
     const hasKey = !!process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY !== 'MY_GEMINI_API_KEY';
 
-    const langName = language === 'ny' ? 'Chichewa' : language === 'tum' ? 'Chitumbuka' : 'English';
+    const langName = 'English';
     const roleContext = userRole === 'extension_officer'
       ? 'The user is an Agricultural Extension Development Officer (AEDO) in Malawi advising farmers.'
       : 'The user is a smallholder farmer in Malawi cultivating maize, tobacco, or legumes.';
@@ -476,20 +471,14 @@ CRITICAL AGRONOMIC SAFETY RULES:
 1. Low-risk cultural practices ALWAYS COME FIRST (scouting, hand-picking caterpillars, rogueing diseased plants, wood ash / clean sand in whorls, crop rotation).
 2. ZERO-DOSE POLICY: NEVER provide chemical doses, concentrations, or volumes (e.g. ml/L, g/ha, spoons per pump). Instruct the farmer to visit a certified agro-dealer (such as Farmers World, Agora, or ATC in Malawi) and follow package labels.
 3. Safety Warning: Mention safety gear (mask, gloves, boots) and keeping chemicals away from children, livestock, and drinking water.
-4. Reply in natural, respectful ${langName}. If Chichewa or Tumbuka is selected, explain technical plant pathology terms simply in that language.
+4. Reply in natural, respectful ${langName}.  Explain technical plant pathology terms simply.
 `.trim();
 
     if (!hasKey) {
       // Mock friendly multi-turn response when offline/no key
       const lastMsg = messages[messages.length - 1].text.toLowerCase();
       let reply = '';
-      if (language === 'ny') {
-        reply = 'Moni! Monga mlangizi wanu wa Crop Doctor, ndikulimbikitsa kuyamba ndi njira zachilengedwe: yang\'anani munda wanu m\'mawa kwambiri, tolani mbozi ndi manja, ndipo thirani phulusa lophikira pang\'ono m\'kati mwa chimanga chovulala. Musapereke mankhwala popanda kuwerenga paketi ku sitolo ya Farmers World kapena ATC.';
-      } else if (language === 'tum') {
-        reply = 'Moni! Nga ndi Mulara wa vya Ulimi, yambani na nthowa zakupusa: penjerezgani munda mulenjilenji, torani nthuchi na minwe, na kuthira jito lachoko mu ngoma. Munkhwala uguleni ku Agro-dealer wakuzomerezgeka pera.';
-      } else {
-        reply = 'Hello! As your Crop Doctor AI advisor, I recommend starting with low-risk cultural methods: scout your field twice weekly, hand-pick caterpillars in the early morning, and apply a pinch of clean wood ash or dry sand into affected leaf whorls. If you require registered crop protection products, visit an authorized agro-dealer (Farmers World or ATC) and read the manufacturer label for exact directions.';
-      }
+      reply = 'Hello! As your Crop Doctor AI advisor, I recommend starting with low-risk cultural methods: scout your field twice weekly, hand-pick caterpillars in the early morning, and apply a pinch of clean wood ash or dry sand into affected leaf whorls. If you require registered crop protection products, visit an authorized agro-dealer (Farmers World or ATC) and read the manufacturer label for exact directions.';
 
       res.json({
         reply,
@@ -565,13 +554,7 @@ CRITICAL AGRONOMIC SAFETY RULES:
     console.warn('Chat endpoint encountered upstream issue, providing safe agronomic fallback:', err?.message || err);
     const { language = 'en' } = req.body || {};
     let fallbackReply = '';
-    if (language === 'ny') {
-      fallbackReply = 'Moni! Malangizo oyamba a za ulimi ku Malawi ndi awa: yang\'anani munda wanu m\'mawa kwambiri (scouting), tolani mbozi ndi manja m\'kati mwa nsonga ya chimanga, ndi kuthira phulusa lophikira kapena mchenga woyera m\'kati mwa nsonga zovulala. Mukafuna mankhwala ovomerezeka, pitani ku sitolo yovomerezeka ya Farmers World kapena ATC ndipo tsatirani chikalata cha pa paketi.';
-    } else if (language === 'tum') {
-      fallbackReply = 'Moni! Yambani na nthowa zakupusa zakujivikilira: penjerezgani munda mulenjilenji, torani nthuchi na minwe, na kuthira jito lachoko mu ngoma yovulala. Munkhwala uguleni ku sitolo yakuzomerezgeka ya Agro-dealer.';
-    } else {
-      fallbackReply = 'Hello! As a smallholder farmer in Malawi, your best primary defence against crop pests is early field scouting twice weekly, hand-picking caterpillars and squashing egg masses, and dropping a pinch of fine wood ash or dry sand into affected leaf funnels. For persistent damage, consult your local EPA extension officer and visit a licensed agro-dealer (such as Farmers World or ATC) to review registered products.';
-    }
+    fallbackReply = 'Hello! As a smallholder farmer in Malawi, your best primary defence against crop pests is early field scouting twice weekly, hand-picking caterpillars and squashing egg masses, and dropping a pinch of fine wood ash or dry sand into affected leaf funnels. For persistent damage, consult your local EPA extension officer and visit a licensed agro-dealer (such as Farmers World or ATC) to review registered products.';
 
     res.json({
       reply: fallbackReply,

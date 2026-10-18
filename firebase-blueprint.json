@@ -27,7 +27,7 @@
         "farmerName": { "type": "string", "description": "Name of the farmer" },
         "cropName": { "type": "string", "description": "Crop name" },
         "primaryDiagnosis": { "type": "string", "description": "English diagnosis" },
-        "localDiagnosisName": { "type": "string", "description": "Diagnosis in Chichewa/Tumbuka" },
+        "localDiagnosisName": { "type": "string", "description": "Diagnosis in the farmer's language" },
         "confidenceScore": { "type": "number", "description": "Confidence percentage" },
         "severity": { "type": "string", "description": "Severity level" },
         "category": { "type": "string", "description": "Disease, pest, deficiency, etc." },
