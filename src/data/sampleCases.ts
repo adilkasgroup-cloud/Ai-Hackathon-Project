@@ -1,7 +1,7 @@
 import { SamplePhotoCase } from '../types/crop';
 
 // Realistic inline SVG representations for agricultural samples
-const fallArmywormSvg = `data:image/svg+xml;utf8,${encodeURIComponent(`
+const fallArmywormIllustration = `data:image/svg+xml;utf8,${encodeURIComponent(`
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300" width="100%" height="100%">
   <defs>
     <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
@@ -63,7 +63,7 @@ const fallArmywormSvg = `data:image/svg+xml;utf8,${encodeURIComponent(`
 </svg>
 `)}`;
 
-const maizeStreakSvg = `data:image/svg+xml;utf8,${encodeURIComponent(`
+const maizeStreakIllustration = `data:image/svg+xml;utf8,${encodeURIComponent(`
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300" width="100%" height="100%">
   <defs>
     <linearGradient id="msv_bg" x1="0%" y1="0%" x2="100%" y2="100%">
@@ -112,7 +112,7 @@ const maizeStreakSvg = `data:image/svg+xml;utf8,${encodeURIComponent(`
 </svg>
 `)}`;
 
-const tobaccoCercosporaSvg = `data:image/svg+xml;utf8,${encodeURIComponent(`
+const tobaccoCercosporaIllustration = `data:image/svg+xml;utf8,${encodeURIComponent(`
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300" width="100%" height="100%">
   <defs>
     <linearGradient id="tob_bg" x1="0%" y1="0%" x2="100%" y2="100%">
@@ -192,6 +192,31 @@ const blurryUnclearSvg = `data:image/svg+xml;utf8,${encodeURIComponent(`
 </svg>
 `)}`;
 
+/**
+ * Real sample photos
+ * ------------------
+ * Put real photos in src/assets/samples/ using these file names (jpg, jpeg, png or webp):
+ *   fall-armyworm.jpg   maize-streak.jpg   tobacco-frog-eye.jpg
+ * When a file exists it is used. When it is missing, the drawn illustration below is used,
+ * so the app never shows a broken image. See src/assets/samples/ATTRIBUTION.md.
+ */
+const photoFiles = import.meta.glob('../assets/samples/*.{jpg,jpeg,png,webp}', {
+  eager: true,
+  query: '?url',
+  import: 'default',
+}) as Record<string, string>;
+
+const samplePhoto = (name: string, fallback: string): string => {
+  const hit = Object.entries(photoFiles).find(
+    ([path]) => path.split('/').pop()!.replace(/\.[^.]+$/, '') === name
+  );
+  return hit ? hit[1] : fallback;
+};
+
+const fallArmywormImage = samplePhoto('fall-armyworm', fallArmywormIllustration);
+const maizeStreakImage = samplePhoto('maize-streak', maizeStreakIllustration);
+const tobaccoCercosporaImage = samplePhoto('tobacco-frog-eye', tobaccoCercosporaIllustration);
+
 export const SAMPLE_CASES: SamplePhotoCase[] = [
   {
     id: 'case-fall-armyworm',
@@ -202,8 +227,8 @@ export const SAMPLE_CASES: SamplePhotoCase[] = [
     titleChichewa: 'Mbozi ya Chiwawa (Buba)',
     titleTumbuka: 'Nthuchi ya Chiwawa (Buba)',
     category: 'pest',
-    imageUrl: fallArmywormSvg,
-    thumbnailUrl: fallArmywormSvg,
+    imageUrl: fallArmywormImage,
+    thumbnailUrl: fallArmywormImage,
     previewDescription: 'Whorl feeding holes, sawdust frass, leaf windowing',
     precomputedResult: {
       en: {
@@ -248,7 +273,7 @@ export const SAMPLE_CASES: SamplePhotoCase[] = [
         language: 'en',
         translationNeedsHumanReview: false,
         timestamp: new Date().toISOString(),
-        imageUrl: fallArmywormSvg,
+        imageUrl: fallArmywormImage,
       },
       ny: {
         id: 'diag-faw-ny',
@@ -292,7 +317,7 @@ export const SAMPLE_CASES: SamplePhotoCase[] = [
         language: 'ny',
         translationNeedsHumanReview: true,
         timestamp: new Date().toISOString(),
-        imageUrl: fallArmywormSvg,
+        imageUrl: fallArmywormImage,
       },
       tum: {
         id: 'diag-faw-tum',
@@ -336,7 +361,7 @@ export const SAMPLE_CASES: SamplePhotoCase[] = [
         language: 'tum',
         translationNeedsHumanReview: true,
         timestamp: new Date().toISOString(),
-        imageUrl: fallArmywormSvg,
+        imageUrl: fallArmywormImage,
       },
     },
   },
@@ -349,8 +374,8 @@ export const SAMPLE_CASES: SamplePhotoCase[] = [
     titleChichewa: 'Nthenda ya Mizere ya Chimanga',
     titleTumbuka: 'Nthenda ya Mizere mu Ngoma',
     category: 'disease',
-    imageUrl: maizeStreakSvg,
-    thumbnailUrl: maizeStreakSvg,
+    imageUrl: maizeStreakImage,
+    thumbnailUrl: maizeStreakImage,
     previewDescription: 'Chlorotic parallel yellow-white streaks on leaves',
     precomputedResult: {
       en: {
@@ -395,7 +420,7 @@ export const SAMPLE_CASES: SamplePhotoCase[] = [
         language: 'en',
         translationNeedsHumanReview: false,
         timestamp: new Date().toISOString(),
-        imageUrl: maizeStreakSvg,
+        imageUrl: maizeStreakImage,
       },
       ny: {
         id: 'diag-msv-ny',
@@ -439,7 +464,7 @@ export const SAMPLE_CASES: SamplePhotoCase[] = [
         language: 'ny',
         translationNeedsHumanReview: true,
         timestamp: new Date().toISOString(),
-        imageUrl: maizeStreakSvg,
+        imageUrl: maizeStreakImage,
       },
       tum: {
         id: 'diag-msv-tum',
@@ -483,7 +508,7 @@ export const SAMPLE_CASES: SamplePhotoCase[] = [
         language: 'tum',
         translationNeedsHumanReview: true,
         timestamp: new Date().toISOString(),
-        imageUrl: maizeStreakSvg,
+        imageUrl: maizeStreakImage,
       },
     },
   },
@@ -496,8 +521,8 @@ export const SAMPLE_CASES: SamplePhotoCase[] = [
     titleChichewa: 'Mawanga a Masamba a Fodya (Frog Eye)',
     titleTumbuka: 'Mawanga gha Hona (Frog Eye)',
     category: 'disease',
-    imageUrl: tobaccoCercosporaSvg,
-    thumbnailUrl: tobaccoCercosporaSvg,
+    imageUrl: tobaccoCercosporaImage,
+    thumbnailUrl: tobaccoCercosporaImage,
     previewDescription: 'Circular brown lesions with pale grey centers on mature leaves',
     precomputedResult: {
       en: {
@@ -542,7 +567,7 @@ export const SAMPLE_CASES: SamplePhotoCase[] = [
         language: 'en',
         translationNeedsHumanReview: false,
         timestamp: new Date().toISOString(),
-        imageUrl: tobaccoCercosporaSvg,
+        imageUrl: tobaccoCercosporaImage,
       },
       ny: {
         id: 'diag-cerc-ny',
@@ -586,7 +611,7 @@ export const SAMPLE_CASES: SamplePhotoCase[] = [
         language: 'ny',
         translationNeedsHumanReview: true,
         timestamp: new Date().toISOString(),
-        imageUrl: tobaccoCercosporaSvg,
+        imageUrl: tobaccoCercosporaImage,
       },
       tum: {
         id: 'diag-cerc-tum',
@@ -630,7 +655,7 @@ export const SAMPLE_CASES: SamplePhotoCase[] = [
         language: 'tum',
         translationNeedsHumanReview: true,
         timestamp: new Date().toISOString(),
-        imageUrl: tobaccoCercosporaSvg,
+        imageUrl: tobaccoCercosporaImage,
       },
     },
   },
