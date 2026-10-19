@@ -6,7 +6,6 @@ export type CropCategory = 'disease' | 'pest' | 'deficiency' | 'stress' | 'healt
 
 export interface DifferentialDiagnosis {
   name: string;
-  localName?: string;
   probability: number; // 0 - 100
   distinguishingFeature: string;
 }

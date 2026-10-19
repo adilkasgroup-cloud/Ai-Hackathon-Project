@@ -103,9 +103,9 @@ export const EscalationModal: React.FC<EscalationModalProps> = ({
     if (!farmerProfile) return '#';
     const text = [
       `*Crop Doctor Malawi - Extension Request*`,
-      `*Mlimi / Farmer:* ${farmerProfile.name}`,
+      `*Farmer:* ${farmerProfile.name}`,
       `*Phone:* ${farmerProfile.phone}`,
-      `*District / Boma:* ${farmerProfile.district} (EPA: ${farmerProfile.epa || 'N/A'}, Village: ${village || 'N/A'})`,
+      `*District:* ${farmerProfile.district} (EPA: ${farmerProfile.epa || 'N/A'}, Village: ${village || 'N/A'})`,
       `*Crop:* ${diagnosis.cropName}`,
       `*AI Suspected Issue:* ${diagnosis.localDiagnosisName} (${diagnosis.primaryDiagnosis})`,
       `*Confidence:* ${diagnosis.confidenceScore}%`,
@@ -151,10 +151,10 @@ export const EscalationModal: React.FC<EscalationModalProps> = ({
                 </div>
                 <div>
                   <h4 className="text-xs font-bold text-amber-950 uppercase tracking-wider">
-                    {userRole === 'extension_officer' || userRole === 'admin' ? 'Farmer accounts only' : 'Sign in required'}
+                    {userRole === 'extension_officer' ? 'Farmer accounts only' : 'Sign in required'}
                   </h4>
                   <p className="text-xs text-amber-900 mt-1 leading-relaxed">
-                    {userRole === 'extension_officer' || userRole === 'admin'
+                    {userRole === 'extension_officer'
                       ? 'Cases can only be sent by farmer accounts. Extension officers review cases from the Cases & Replies queue.'
                       : firebaseUser
                       ? 'You are signed in with Google but have not finished creating your account. It only takes a minute.'
@@ -171,7 +171,7 @@ export const EscalationModal: React.FC<EscalationModalProps> = ({
                 >
                   Cancel
                 </button>
-                {userRole !== 'extension_officer' && userRole !== 'admin' && (
+                {userRole !== 'extension_officer' && (
                   <>
                     {!firebaseUser && (
                       <button

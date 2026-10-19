@@ -20,7 +20,7 @@ const firebaseConfig = JSON.parse(
   fs.readFileSync(path.resolve(__dirname, 'firebase-applet-config.json'), 'utf8')
 );
 
-export type Role = 'farmer' | 'extension_officer' | 'admin';
+export type Role = 'farmer' | 'extension_officer';
 
 export interface AuthedUser {
   uid: string;
@@ -74,7 +74,7 @@ async function loadUser(idToken: string): Promise<AuthedUser | null> {
   const profileJson: any = await profileRes.json();
   const f = profileJson.fields || {};
   const role = readString(f, 'role');
-  if (role !== 'farmer' && role !== 'extension_officer' && role !== 'admin') return null;
+  if (role !== 'farmer' && role !== 'extension_officer') return null;
 
   const user: AuthedUser = {
     uid: account.localId,

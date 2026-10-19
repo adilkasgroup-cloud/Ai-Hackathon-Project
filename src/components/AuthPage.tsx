@@ -26,7 +26,7 @@ const GoogleLogo = () => (
  *  - Sign up  : new users. Google, then a ONE-TIME form (role + details).
  *
  * The role chosen here is only a request: everyone starts as a farmer, and extension
- * officer access has to be approved by an admin.
+ * officer access needs the 4-digit officer code (checked by the Firestore rules).
  */
 export const AuthPage: React.FC<AuthPageProps> = ({ currentLanguage, onClose }) => {
   const {
@@ -42,6 +42,9 @@ export const AuthPage: React.FC<AuthPageProps> = ({ currentLanguage, onClose }) 
     sendPasswordReset,
     sendPhoneCode,
     confirmPhoneCode,
+    setPhonePassword,
+    signInWithPhonePassword,
+    phonePasswordPending,
     createAccount,
     signOut,
   } = useAuth();
@@ -51,6 +54,10 @@ export const AuthPage: React.FC<AuthPageProps> = ({ currentLanguage, onClose }) 
   const [phoneInput, setPhoneInput] = useState('');
   const [phoneStep, setPhoneStep] = useState<'enter' | 'code'>('enter');
   const [smsCode, setSmsCode] = useState('');
+  const [phonePw, setPhonePw] = useState('');
+  const [phonePw2, setPhonePw2] = useState('');
+  // Signing in: the number + password. Resetting: verify by SMS, then choose a new password.
+  const [phoneReset, setPhoneReset] = useState(false);
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -62,6 +69,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({ currentLanguage, onClose }) 
   const [phone, setPhone] = useState('');
   const [district, setDistrict] = useState('Lilongwe');
   const [epa, setEpa] = useState('');
+  const [officerPin, setOfficerPin] = useState('');
   const [consent, setConsent] = useState(false);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
@@ -69,8 +77,11 @@ export const AuthPage: React.FC<AuthPageProps> = ({ currentLanguage, onClose }) 
   // Switching between Sign in and Sign up starts the form fresh
   useEffect(() => {
     setResetMode(false);
+    setPhoneReset(false);
     setPhoneStep('enter');
     setSmsCode('');
+    setPhonePw('');
+    setPhonePw2('');
     setError('');
     setInfo('');
   }, [authView]);
@@ -175,6 +186,45 @@ export const AuthPage: React.FC<AuthPageProps> = ({ currentLanguage, onClose }) 
     }
   };
 
+  const handlePhoneSignIn = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setInfo('');
+    const e164 = toE164(phoneInput);
+    if (!e164) return setError(friendlyAuthError({ code: 'auth/invalid-phone-number' }));
+    if (phonePw.length < 6) return setError('Password must be at least 6 characters.');
+    setBusy(true);
+    try {
+      await signInWithPhonePassword(e164, phonePw);
+    } catch (err: any) {
+      if (err?.code === 'auth/invalid-credential' || err?.code === 'auth/wrong-password' || err?.code === 'auth/user-not-found') {
+        setError('Wrong phone number or password. If you have not chosen a password yet, tap "Forgot password?" to set one.');
+      } else {
+        setError(friendlyAuthError(err));
+      }
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleSetPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    if (phonePw.length < 6) return setError('Password must be at least 6 characters.');
+    if (phonePw !== phonePw2) return setError('The two passwords do not match.');
+    setBusy(true);
+    try {
+      await setPhonePassword(phonePw);
+      setPhonePw('');
+      setPhonePw2('');
+      setPhoneReset(false);
+    } catch (err: any) {
+      setError(err?.code === 'auth/requires-recent-login' ? 'Please request a new code and try again.' : friendlyAuthError(err));
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const handleConfirmCode = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
@@ -182,7 +232,8 @@ export const AuthPage: React.FC<AuthPageProps> = ({ currentLanguage, onClose }) 
     if (smsCode.replace(/\D/g, '').length < 6) return setError(friendlyAuthError({ code: 'auth/invalid-verification-code' }));
     setBusy(true);
     try {
-      await confirmPhoneCode(smsCode);
+      // New accounts and password resets must choose a password right after the code check
+      await confirmPhoneCode(smsCode, authView === 'signup' || phoneReset);
     } catch (err: any) {
       setError(friendlyAuthError(err));
     } finally {
@@ -228,12 +279,17 @@ export const AuthPage: React.FC<AuthPageProps> = ({ currentLanguage, onClose }) 
     if (!name.trim()) return setError('Please enter your full name.');
     if (phone.replace(/\D/g, '').length < 9) return setError('Please enter a valid phone number, e.g. +265 888 123 456.');
     if (requestedRole === 'extension_officer' && !epa.trim()) return setError('Please enter the EPA you are assigned to.');
+    if (requestedRole === 'extension_officer' && !/^\d{4}$/.test(officerPin)) return setError('Please enter the 4-digit extension officer code.');
     if (!consent) return setError('Please tick the privacy consent box to continue.');
 
     setBusy(true);
     try {
-      await createAccount({ requestedRole, name, phone, district, epa, consentGiven: consent });
+      await createAccount({ requestedRole, officerPin, name, phone, district, epa, consentGiven: consent });
     } catch (err: any) {
+      if (requestedRole === 'extension_officer' && err?.code === 'permission-denied') {
+        setError('That extension officer code is not correct. Please check it and try again.');
+        return;
+      }
       setError(err?.message || 'Could not create your account. Please try again.');
     } finally {
       setBusy(false);
@@ -274,7 +330,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({ currentLanguage, onClose }) 
             )}
 
             {/* Checking who is signed in */}
-            {loading && (
+            {loading && !phonePasswordPending && (
               <div className="py-10 text-center text-sm text-stone-500 flex items-center justify-center gap-2">
                 <RefreshCw className="w-4 h-4 animate-spin" />
                 <span>Checking your account…</span>
@@ -282,7 +338,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({ currentLanguage, onClose }) 
             )}
 
             {/* Signed in and set up: App closes this page automatically */}
-            {!loading && firebaseUser && profile && (
+            {!loading && firebaseUser && profile && !phonePasswordPending && (
               <div className="py-10 text-center text-sm text-emerald-800 flex items-center justify-center gap-2">
                 <CheckCircle2 className="w-5 h-5" />
                 <span>Signed in. Taking you to your dashboard…</span>
@@ -352,9 +408,9 @@ export const AuthPage: React.FC<AuthPageProps> = ({ currentLanguage, onClose }) 
                 {/* Invisible reCAPTCHA sits here (required by Firebase phone sign-in) */}
                 <div id="recaptcha-container" />
 
-                {/* PHONE: step 1, enter number */}
-                {method === 'phone' && !resetMode && phoneStep === 'enter' && (
-                  <form onSubmit={handleSendCode} className="space-y-3">
+                {/* PHONE sign in: number + password, no SMS code */}
+                {method === 'phone' && !resetMode && phoneStep === 'enter' && authView !== 'signup' && !phoneReset && (
+                  <form onSubmit={handlePhoneSignIn} className="space-y-3">
                     <div>
                       <label className="block text-xs font-bold text-stone-800 mb-1">Phone number</label>
                       <input
@@ -366,7 +422,65 @@ export const AuthPage: React.FC<AuthPageProps> = ({ currentLanguage, onClose }) 
                         placeholder="0888 123 456"
                         required
                       />
-                      <p className="text-[11px] text-stone-500 mt-1">We will text you a 6-digit code. Standard SMS rates may apply.</p>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-stone-800 mb-1">Password</label>
+                      <input
+                        className={inputClass}
+                        type="password"
+                        autoComplete="current-password"
+                        value={phonePw}
+                        onChange={(e) => setPhonePw(e.target.value)}
+                        placeholder="Your password"
+                        required
+                        minLength={6}
+                      />
+                    </div>
+                    <button
+                      type="submit"
+                      disabled={busy}
+                      className="w-full py-3 bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-sm rounded-xl shadow-xs transition-colors cursor-pointer disabled:opacity-50"
+                    >
+                      {busy ? 'Signing in…' : 'Sign in'}
+                    </button>
+                    <div className="text-center">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setPhoneReset(true);
+                          setError('');
+                          setInfo('');
+                        }}
+                        className="text-xs text-emerald-700 font-semibold hover:underline cursor-pointer"
+                      >
+                        Forgot password?
+                      </button>
+                    </div>
+                  </form>
+                )}
+
+                {/* PHONE sign up (and password reset): enter number, we text a code once */}
+                {method === 'phone' && !resetMode && phoneStep === 'enter' && (authView === 'signup' || phoneReset) && (
+                  <form onSubmit={handleSendCode} className="space-y-3">
+                    {phoneReset && (
+                      <p className="text-sm text-stone-600">
+                        Enter your number. We will text you a code to confirm it is you, then you can choose a new password.
+                      </p>
+                    )}
+                    <div>
+                      <label className="block text-xs font-bold text-stone-800 mb-1">Phone number</label>
+                      <input
+                        className={`${inputClass} font-mono`}
+                        type="tel"
+                        autoComplete="tel"
+                        value={phoneInput}
+                        onChange={(e) => setPhoneInput(e.target.value)}
+                        placeholder="0888 123 456"
+                        required
+                      />
+                      <p className="text-[11px] text-stone-500 mt-1">
+                        We will text you a 6-digit code once to confirm this number, then you choose a password. Standard SMS rates may apply.
+                      </p>
                     </div>
                     <button
                       type="submit"
@@ -375,6 +489,21 @@ export const AuthPage: React.FC<AuthPageProps> = ({ currentLanguage, onClose }) 
                     >
                       {busy ? 'Sending code…' : 'Send me a code'}
                     </button>
+                    {phoneReset && (
+                      <div className="text-center">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setPhoneReset(false);
+                            setError('');
+                            setInfo('');
+                          }}
+                          className="text-xs text-emerald-700 font-semibold hover:underline cursor-pointer"
+                        >
+                          Back to sign in
+                        </button>
+                      </div>
+                    )}
                   </form>
                 )}
 
@@ -400,7 +529,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({ currentLanguage, onClose }) 
                       disabled={busy}
                       className="w-full py-3 bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-sm rounded-xl shadow-xs transition-colors cursor-pointer disabled:opacity-50"
                     >
-                      {busy ? 'Checking…' : authView === 'signup' ? 'Verify and continue' : 'Verify and sign in'}
+                      {busy ? 'Checking…' : 'Verify and continue'}
                     </button>
                     <div className="text-center">
                       <button
@@ -510,15 +639,61 @@ export const AuthPage: React.FC<AuthPageProps> = ({ currentLanguage, onClose }) 
               </>
             )}
 
+            {/* After the SMS check: choose the password used to sign in next time */}
+            {firebaseUser && phonePasswordPending && (
+              <form onSubmit={handleSetPassword} className="space-y-4">
+                <div className="space-y-1.5">
+                  <h1 className="text-2xl font-bold text-stone-900 tracking-tight">Choose a password</h1>
+                  <p className="text-sm text-stone-500">
+                    <strong className="text-stone-700">{firebaseUser.phoneNumber}</strong> is confirmed. Next time you can sign in with
+                    this number and your password, with no SMS code.
+                  </p>
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-stone-800 mb-1">Password</label>
+                  <input
+                    className={inputClass}
+                    type="password"
+                    autoComplete="new-password"
+                    value={phonePw}
+                    onChange={(e) => setPhonePw(e.target.value)}
+                    placeholder="At least 6 characters"
+                    required
+                    minLength={6}
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-stone-800 mb-1">Confirm password</label>
+                  <input
+                    className={inputClass}
+                    type="password"
+                    autoComplete="new-password"
+                    value={phonePw2}
+                    onChange={(e) => setPhonePw2(e.target.value)}
+                    placeholder="Type it again"
+                    required
+                    minLength={6}
+                  />
+                </div>
+                <button
+                  type="submit"
+                  disabled={busy}
+                  className="w-full py-3 bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-sm rounded-xl shadow-xs transition-colors cursor-pointer disabled:opacity-50"
+                >
+                  {busy ? 'Saving…' : 'Save password and continue'}
+                </button>
+              </form>
+            )}
+
             {/* STEP 2: Signed in with Google but no Crop Doctor account yet => one-time set-up */}
-            {needsOnboarding && (
+            {needsOnboarding && !phonePasswordPending && (
               <form onSubmit={handleCreate} className="space-y-4">
                 <div className="space-y-1.5">
                   <h1 className="text-2xl font-bold text-stone-900 tracking-tight">
                     {authView === 'signin' ? 'Finish creating your account' : 'Tell us about you'}
                   </h1>
                   <p className="text-sm text-stone-500">
-                    Signed in as <strong className="text-stone-700">{firebaseUser?.email || firebaseUser?.phoneNumber}</strong>.{' '}
+                    Signed in as <strong className="text-stone-700">{firebaseUser?.phoneNumber || firebaseUser?.email}</strong>.{' '}
                     <button type="button" onClick={signOut} className="text-emerald-700 font-semibold hover:underline cursor-pointer">
                       Use a different account
                     </button>
@@ -572,9 +747,24 @@ export const AuthPage: React.FC<AuthPageProps> = ({ currentLanguage, onClose }) 
                 {requestedRole === 'extension_officer' && (
                   <div className="p-3 bg-blue-50 border border-blue-200 rounded-xl text-xs text-blue-900 flex items-start gap-2">
                     <ShieldCheck className="w-4 h-4 text-blue-700 shrink-0 mt-0.5" />
-                    <span>
-                      Officer accounts are <strong>approved by an administrator</strong>. Until then you'll have normal farmer access.
-                    </span>
+                    <span>Enter the <strong>4-digit extension officer code</strong> you were given to create an officer account.</span>
+                  </div>
+                )}
+
+                {requestedRole === 'extension_officer' && (
+                  <div>
+                    <label className="block text-xs font-bold text-stone-800 mb-1">Extension officer code</label>
+                    <input
+                      className={`${inputClass} font-mono tracking-[0.5em] text-center text-lg`}
+                      type="password"
+                      inputMode="numeric"
+                      autoComplete="off"
+                      maxLength={4}
+                      value={officerPin}
+                      onChange={(e) => setOfficerPin(e.target.value.replace(/\D/g, ''))}
+                      placeholder="••••"
+                      required
+                    />
                   </div>
                 )}
 
@@ -599,7 +789,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({ currentLanguage, onClose }) 
 
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-xs font-bold text-stone-800 mb-1">District (Boma)</label>
+                    <label className="block text-xs font-bold text-stone-800 mb-1">District</label>
                     <select className={inputClass} value={district} onChange={(e) => setDistrict(e.target.value)}>
                       {MALAWI_DISTRICTS.map((d) => (
                         <option key={d} value={d}>

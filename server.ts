@@ -28,10 +28,10 @@ escalationQueue.push({
   id: 'esc-demo-1',
   diagnosis: {
     id: 'diag-seed-1',
-    cropName: 'Maize (Chimanga)',
+    cropName: 'Maize',
     category: 'pest',
     primaryDiagnosis: 'Suspected Maize Stalk Borer / Fall Armyworm',
-    localDiagnosisName: 'Kafadala / Mbozi ya Chiwawa',
+    localDiagnosisName: 'Stalk Borer / Fall Armyworm',
     confidenceScore: 58,
     confidenceLevel: 'low',
     visualObservations: [
@@ -42,13 +42,11 @@ escalationQueue.push({
     differentialDiagnoses: [
       {
         name: 'African Stalk Borer (Busseola fusca)',
-        localName: 'Kafadala',
         probability: 45,
         distinguishingFeature: 'Regular rows of pinholes across unfolded leaf',
       },
       {
         name: 'Fall Armyworm (Spodoptera frugiperda)',
-        localName: 'Buba',
         probability: 35,
         distinguishingFeature: 'Ragged windowing and granular frass',
       },
@@ -65,14 +63,14 @@ escalationQueue.push({
     safetyWarning: 'SAFETY NOTE: Wear protective gloves and face mask when handling crop chemicals.',
     language: 'en',
     timestamp: new Date(Date.now() - 3600000 * 4).toISOString(),
-    imageUrl: 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="200" height="150"><rect width="200" height="150" fill="%233f5e2d"/><text x="15" y="75" fill="white" font-size="12">Maize Stalk Borer Case</text></svg>',
+    imageUrl: '/demo/stalk-borer.jpg',
   },
   farmerName: 'Chifundo Banda',
   farmerPhone: '+265 888 234 567',
   district: 'Kasungu',
   epa: 'Chulu EPA',
   village: 'Mtenthera Village',
-  additionalNotes: 'Chimanga chosala pang\'ono kulowa m\'maluwa, masamba ena akumwalira kuchokera pamwamba.',
+  additionalNotes: 'The maize is not flowering properly and some leaves are dying from the top.',
   status: 'pending',
   createdAt: new Date(Date.now() - 3600000 * 4).toISOString(),
 });
@@ -81,10 +79,10 @@ escalationQueue.push({
   id: 'esc-demo-2',
   diagnosis: {
     id: 'diag-seed-2',
-    cropName: 'Tobacco (Fodya)',
+    cropName: 'Tobacco',
     category: 'disease',
     primaryDiagnosis: 'Suspected Wildfire / Angular Leaf Spot',
-    localDiagnosisName: 'Matenda a Moto m\'Masamba a Fodya',
+    localDiagnosisName: 'Tobacco Wildfire / Angular Leaf Spot',
     confidenceScore: 62,
     confidenceLevel: 'low',
     visualObservations: [
@@ -94,13 +92,11 @@ escalationQueue.push({
     differentialDiagnoses: [
       {
         name: 'Tobacco Wildfire (Pseudomonas syringae pv. tabaci)',
-        localName: 'Matenda a Moto',
         probability: 48,
         distinguishingFeature: 'Broad distinct yellowish halo around bacterial lesion',
       },
       {
         name: 'Frog-eye (Cercospora)',
-        localName: 'Mawanga a Frog-eye',
         probability: 30,
         distinguishingFeature: 'White ash center with circular margin',
       },
@@ -117,7 +113,7 @@ escalationQueue.push({
     safetyWarning: 'SAFETY NOTE: Wash all hands, gumboots, and clothing after inspecting infected tobacco plots.',
     language: 'en',
     timestamp: new Date(Date.now() - 3600000 * 18).toISOString(),
-    imageUrl: 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="200" height="150"><rect width="200" height="150" fill="%234a5d28"/><text x="15" y="75" fill="white" font-size="12">Tobacco Wildfire Case</text></svg>',
+    imageUrl: '/demo/tobacco-wildfire.jpg',
   },
   farmerName: 'Esnart Phiri',
   farmerPhone: '+265 999 456 789',
@@ -127,7 +123,7 @@ escalationQueue.push({
   additionalNotes: 'Mvula yamphamvu itagwa sabata yatha mawanga afalikira masamba akumunsi onse.',
   status: 'in_review',
   officerName: 'AEDO J. Mwale (Nambuma EPA)',
-  officerFeedback: 'Ndiyendera munda mawa m\'mawa. Chonde musasolole kuli mame.',
+  officerFeedback: 'I will visit your field tomorrow morning. Please do not spray while the leaves are still wet with dew.',
   reviewedAt: new Date(Date.now() - 3600000 * 2).toISOString(),
   createdAt: new Date(Date.now() - 3600000 * 18).toISOString(),
 });
@@ -180,13 +176,11 @@ app.post('/api/diagnose', async (req: Request, res: Response) => {
         differentialDiagnoses: [
           {
             name: 'African Maize Stalk Borer (Busseola fusca)',
-            localName: 'Stalk Borer',
             probability: 32,
             distinguishingFeature: 'Produces tidy horizontal pinholes on expanding leaf blades.',
           },
           {
             name: 'Grasshopper Chewing Damage',
-            localName: 'Grasshopper',
             probability: 15,
             distinguishingFeature: 'Chews leaf margins from outside without whorl frass accumulation.',
           },
@@ -257,13 +251,12 @@ Return valid JSON conforming to this structure:
   "cropName": "Name of the crop identified",
   "category": "disease" | "pest" | "deficiency" | "stress" | "healthy" | "unclear",
   "primaryDiagnosis": "Primary English diagnosis name (scientific name if applicable)",
-  "localDiagnosisName": "Diagnosis name in ${targetLangName}",
+  "localDiagnosisName": "Short common English name of the problem (e.g. Fall Armyworm)",
   "confidenceScore": number (0 to 100),
   "visualObservations": ["list of strict physical descriptions visible in photo"],
   "differentialDiagnoses": [
     {
       "name": "Alternative condition 1",
-      "localName": "Alternative name in ${targetLangName}",
       "probability": number (0 to 100),
       "distinguishingFeature": "How to tell it apart from primary diagnosis"
     }
@@ -322,7 +315,7 @@ Return valid JSON conforming to this structure:
       cropName: parsed.cropName || cropHint || 'Crop',
       category: parsed.category || 'disease',
       primaryDiagnosis: parsed.primaryDiagnosis || 'Unspecified Condition',
-      localDiagnosisName: parsed.localDiagnosisName || parsed.primaryDiagnosis || 'Vuto la mbeu',
+      localDiagnosisName: parsed.localDiagnosisName || parsed.primaryDiagnosis || 'Crop problem',
       confidenceScore: typeof parsed.confidenceScore === 'number' ? Math.min(100, Math.max(0, parsed.confidenceScore)) : 65,
       confidenceLevel: 'medium',
       visualObservations: Array.isArray(parsed.visualObservations) ? parsed.visualObservations : ['Observed discoloration on foliage.'],
@@ -626,7 +619,7 @@ app.get('/api/science/pathogen-profile', async (req: Request, res: Response) => 
       },
       'maize streak virus': {
         scientificName: 'Maize streak virus (MSV)',
-        commonName: 'Nthenda ya Mizere ya Chimanga',
+        commonName: 'Maize Streak Disease',
         taxonomy: {
           realm: 'Monodnaviria',
           family: 'Geminiviridae',
@@ -664,7 +657,7 @@ app.get('/api/science/pathogen-profile', async (req: Request, res: Response) => 
       },
       'cercospora nicotianae': {
         scientificName: 'Cercospora nicotianae Ellis & Everh.',
-        commonName: 'Frog-Eye Leaf Spot / Mawanga a Fodya',
+        commonName: 'Frog-Eye Leaf Spot',
         taxonomy: {
           kingdom: 'Fungi',
           phylum: 'Ascomycota',

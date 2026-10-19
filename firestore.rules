@@ -42,8 +42,15 @@ service cloud.firestore {
       return hasProfile() && callerRole() == 'extension_officer';
     }
 
-    function isAdmin() {
-      return hasProfile() && callerRole() == 'admin';
+    // DEMO officer code. Anyone who knows these 4 digits can create an extension officer account.
+    // Change it before real use (it appears in README.md for the hackathon demo).
+    function officerCode() {
+      return '4827';
+    }
+
+    // True when the SAME batch also writes officerClaims/{uid} holding the correct code.
+    function hasOfficerCode(userId) {
+      return getAfter(/databases/$(database)/documents/officerClaims/$(userId)).data.pin == officerCode();
     }
 
     function isValidId(id) {
@@ -51,60 +58,38 @@ service cloud.firestore {
     }
 
     // ---------------------------------------------------------------
-    // Users: role is set to 'farmer' at sign-up and can only be changed by an admin.
-    // 'admin' can never be granted from the app - set it by hand in the Firebase console.
+    // Users: a new account is a 'farmer', or an 'extension_officer' when it comes with the correct
+    // 4-digit officer code. After sign-up nobody can change their own role.
     // ---------------------------------------------------------------
     match /users/{userId} {
-      allow get: if isOwner(userId) || isAdmin();
-      allow list: if isAdmin();
+      allow get: if isOwner(userId);
+      allow list: if false;
 
-      // Everyone starts as a farmer. Officer access goes through /officerRequests.
       allow create: if isOwner(userId) &&
         isValidId(userId) &&
         incoming().uid == userId &&
-        incoming().role == 'farmer';
+        (incoming().role == 'farmer' ||
+          (incoming().role == 'extension_officer' && hasOfficerCode(userId)));
 
-      allow update: if
-        // The owner may edit their details but never their uid or role
-        (isOwner(userId) &&
-          incoming().uid == existing().uid &&
-          incoming().role == existing().role)
-        ||
-        // An admin may ONLY change role (and the timestamp), and only to farmer/officer
-        (isAdmin() &&
-          incoming().uid == existing().uid &&
-          incoming().diff(existing()).affectedKeys().hasOnly(['role', 'updatedAt']) &&
-          incoming().role in ['farmer', 'extension_officer']);
+      allow update: if isOwner(userId) &&
+        incoming().uid == existing().uid &&
+        incoming().role == existing().role;
 
       allow delete: if false;
     }
 
     // ---------------------------------------------------------------
-    // Officer requests: a user asks to become an extension officer; an admin approves.
+    // Officer code claims: written together with a new officer account so the rules can check
+    // the code. Only the owner can read their own; nobody can change or delete one.
     // ---------------------------------------------------------------
-    match /officerRequests/{userId} {
-      allow get: if isOwner(userId) || isAdmin();
-      allow list: if isAdmin();
-
+    match /officerClaims/{userId} {
+      allow get: if isOwner(userId);
       allow create: if isOwner(userId) &&
         isValidId(userId) &&
         incoming().uid == userId &&
-        incoming().status == 'pending';
-
-      allow update: if
-        // Owner can edit their details while it is still pending
-        (isOwner(userId) &&
-          existing().status == 'pending' &&
-          incoming().status == 'pending' &&
-          incoming().uid == existing().uid)
-        ||
-        // Admin can only decide the request
-        (isAdmin() &&
-          incoming().uid == existing().uid &&
-          incoming().diff(existing()).affectedKeys().hasOnly(['status', 'reviewedAt', 'reviewedBy']) &&
-          incoming().status in ['approved', 'rejected']);
-
-      allow delete: if false;
+        incoming().pin is string &&
+        incoming().pin.matches('^[0-9]{4}$');
+      allow update, delete: if false;
     }
 
     // ---------------------------------------------------------------

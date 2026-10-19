@@ -104,7 +104,7 @@ export const ExtensionOfficerPortal: React.FC<ExtensionOfficerPortalProps> = ({
 
   const getWhatsAppFarmerUrl = (ticket: EscalationTicket) => {
     const text = [
-      `Moni ${ticket.farmerName},`,
+      `Hello ${ticket.farmerName},`,
       `This is ${officerProfile?.name || 'AEDO Extension Officer'} from Ministry of Agriculture Extension (EPA).`,
       `Regarding your crop photo for *${ticket.diagnosis.cropName}* (${ticket.diagnosis.localDiagnosisName}):`,
       officerNotes || ticket.officerFeedback || `We have reviewed your field photo. Please scout adjacent rows and avoid applying unverified chemicals.`,
@@ -118,7 +118,7 @@ export const ExtensionOfficerPortal: React.FC<ExtensionOfficerPortalProps> = ({
   const pendingCount = tickets.filter((t) => t.status === 'pending').length;
   const criticalCount = tickets.filter((t) => t.diagnosis.severity === 'critical').length;
 
-  // ACCESS GUARD: only approved extension officers see the queue (the server enforces this too)
+  // ACCESS GUARD: only extension officers see the queue (the server enforces this too)
   if (!officerProfile) {
     return (
       <div className="bg-white rounded-3xl border border-stone-200 shadow-sm p-8 max-w-lg mx-auto my-8 space-y-6 text-center animate-in fade-in duration-300">
@@ -132,8 +132,8 @@ export const ExtensionOfficerPortal: React.FC<ExtensionOfficerPortalProps> = ({
           </div>
           <h2 className="text-xl font-bold text-stone-900 tracking-tight">Officer Cases & Replies</h2>
           <p className="text-xs text-stone-500 mt-1.5 max-w-sm mx-auto leading-relaxed">
-            Submitted farmer crop cases are only available to approved Agricultural Extension Development Officers (AEDO).
-            Officer accounts are approved by an administrator.
+            Submitted farmer crop cases are only available to Agricultural Extension Development Officers (AEDO).
+            Officer accounts are created with a 4-digit extension officer code.
           </p>
         </div>
 
@@ -305,7 +305,7 @@ export const ExtensionOfficerPortal: React.FC<ExtensionOfficerPortalProps> = ({
                         {ticket.diagnosis.localDiagnosisName}
                       </h4>
                       <p className="text-[11px] text-stone-600 truncate">
-                        Mlimi: {ticket.farmerName} • {ticket.district}
+                        Farmer: {ticket.farmerName} • {ticket.district}
                       </p>
 
                       <div className="mt-1 flex items-center justify-between text-[10px]">
@@ -468,7 +468,7 @@ export const ExtensionOfficerPortal: React.FC<ExtensionOfficerPortalProps> = ({
                       className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-bold text-xs rounded-xl shadow-xs flex items-center gap-1.5 transition-colors ml-auto"
                     >
                       <MessageSquare className="w-3.5 h-3.5" />
-                      <span>WhatsApp to Mlimi</span>
+                      <span>WhatsApp to Farmer</span>
                     </a>
                   </div>
                 </div>
