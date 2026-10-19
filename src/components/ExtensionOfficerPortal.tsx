@@ -104,7 +104,7 @@ export const ExtensionOfficerPortal: React.FC<ExtensionOfficerPortalProps> = ({
 
   const getWhatsAppFarmerUrl = (ticket: EscalationTicket) => {
     const text = [
-      `Moni ${ticket.farmerName},`,
+      `Hello ${ticket.farmerName},`,
       `This is ${officerProfile?.name || 'AEDO Extension Officer'} from Ministry of Agriculture Extension (EPA).`,
       `Regarding your crop photo for *${ticket.diagnosis.cropName}* (${ticket.diagnosis.localDiagnosisName}):`,
       officerNotes || ticket.officerFeedback || `We have reviewed your field photo. Please scout adjacent rows and avoid applying unverified chemicals.`,
@@ -305,7 +305,7 @@ export const ExtensionOfficerPortal: React.FC<ExtensionOfficerPortalProps> = ({
                         {ticket.diagnosis.localDiagnosisName}
                       </h4>
                       <p className="text-[11px] text-stone-600 truncate">
-                        Mlimi: {ticket.farmerName} • {ticket.district}
+                        Farmer: {ticket.farmerName} • {ticket.district}
                       </p>
 
                       <div className="mt-1 flex items-center justify-between text-[10px]">
@@ -468,7 +468,7 @@ export const ExtensionOfficerPortal: React.FC<ExtensionOfficerPortalProps> = ({
                       className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-bold text-xs rounded-xl shadow-xs flex items-center gap-1.5 transition-colors ml-auto"
                     >
                       <MessageSquare className="w-3.5 h-3.5" />
-                      <span>WhatsApp to Mlimi</span>
+                      <span>WhatsApp to Farmer</span>
                     </a>
                   </div>
                 </div>

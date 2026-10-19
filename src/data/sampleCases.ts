@@ -221,7 +221,7 @@ export const SAMPLE_CASES: SamplePhotoCase[] = [
   {
     id: 'case-fall-armyworm',
     crop: 'Maize',
-    title: 'Fall Armyworm (Buba)',
+    title: 'Fall Armyworm',
     category: 'pest',
     imageUrl: fallArmywormImage,
     thumbnailUrl: fallArmywormImage,
@@ -232,7 +232,7 @@ export const SAMPLE_CASES: SamplePhotoCase[] = [
         cropName: 'Maize',
         category: 'pest',
         primaryDiagnosis: 'Fall Armyworm (Spodoptera frugiperda)',
-        localDiagnosisName: 'Mbozi ya Chiwawa / Buba',
+        localDiagnosisName: 'Fall Armyworm',
         confidenceScore: 92,
         confidenceLevel: 'high',
         visualObservations: [
@@ -243,13 +243,11 @@ export const SAMPLE_CASES: SamplePhotoCase[] = [
         differentialDiagnoses: [
           {
             name: 'African Maize Stalk Borer (Busseola fusca)',
-            localName: 'Kafadala',
             probability: 34,
             distinguishingFeature: 'Stalk borer creates neat horizontal rows of pin-holes across unfolded leaves rather than large ragged tears.',
           },
           {
             name: 'Grasshopper or Locust Foliage Chewing',
-            localName: 'Dzombe kapena Ziwala',
             probability: 14,
             distinguishingFeature: 'Chews leaf edges from outside inward with no frass buildup inside the central whorl.',
           },
@@ -286,7 +284,7 @@ export const SAMPLE_CASES: SamplePhotoCase[] = [
         cropName: 'Maize',
         category: 'disease',
         primaryDiagnosis: 'Maize Streak Virus (MSV)',
-        localDiagnosisName: 'Nthenda ya Mizere ya Chimanga',
+        localDiagnosisName: 'Maize Streak Virus',
         confidenceScore: 88,
         confidenceLevel: 'high',
         visualObservations: [
@@ -297,13 +295,11 @@ export const SAMPLE_CASES: SamplePhotoCase[] = [
         differentialDiagnoses: [
           {
             name: 'Maize Dwarf Mosaic Virus (MDMV)',
-            localName: 'Nthenda ya Matenda a Dzungu',
             probability: 28,
             distinguishingFeature: 'MDMV produces mottled blotches and yellow flecks rather than continuous uniform stripes.',
           },
           {
             name: 'Zinc or Nitrogen Nutrient Deficiency',
-            localName: 'Kusowa kwa Mchere wa m\'nthaka',
             probability: 19,
             distinguishingFeature: 'Nutrient deficiency typically appears as wide interveinal yellow bands rather than distinct pinpoint continuous lines.',
           },
@@ -340,7 +336,7 @@ export const SAMPLE_CASES: SamplePhotoCase[] = [
         cropName: 'Tobacco',
         category: 'disease',
         primaryDiagnosis: 'Frog-Eye Leaf Spot (Cercospora nicotianae)',
-        localDiagnosisName: 'Mawanga a Masamba a Fodya',
+        localDiagnosisName: 'Frog-Eye Leaf Spot',
         confidenceScore: 84,
         confidenceLevel: 'high',
         visualObservations: [
@@ -351,13 +347,11 @@ export const SAMPLE_CASES: SamplePhotoCase[] = [
         differentialDiagnoses: [
           {
             name: 'Brown Spot (Alternaria alternata)',
-            localName: 'Mawanga a Brown Spot',
             probability: 39,
             distinguishingFeature: 'Alternaria spots exhibit prominent concentric target-like rings without the bleached white center.',
           },
           {
             name: 'Weather Fleck / Ozone Injury',
-            localName: 'Kuvulala ndi nyengo',
             probability: 17,
             distinguishingFeature: 'Irregular minute flecks concentrated along upper leaf surface without dark circular fungal margins.',
           },
@@ -394,7 +388,7 @@ export const SAMPLE_CASES: SamplePhotoCase[] = [
         cropName: 'Maize / Unidentified Field Crop',
         category: 'unclear',
         primaryDiagnosis: 'Unclear Symptoms (Foliage discoloration)',
-        localDiagnosisName: 'Kufooka kwa Mbeu (Chithunzi Chosamveka)',
+        localDiagnosisName: 'Unclear Photo (Retake Needed)',
         confidenceScore: 42,
         confidenceLevel: 'low',
         visualObservations: [
@@ -405,13 +399,11 @@ export const SAMPLE_CASES: SamplePhotoCase[] = [
         differentialDiagnoses: [
           {
             name: 'Severe Drought or Moisture Stress',
-            localName: 'Chilala kapena Nkhungu',
             probability: 30,
             distinguishingFeature: 'Uniform leaf wilting without localized bacterial lesions.',
           },
           {
             name: 'Bacterial Stalk or Leaf Rot',
-            localName: 'Chiboliboli cha tsinde',
             probability: 25,
             distinguishingFeature: 'Water-soaked soft rotting with foul smell at the plant base.',
           },
