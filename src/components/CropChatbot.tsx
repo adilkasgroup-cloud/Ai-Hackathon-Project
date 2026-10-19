@@ -34,11 +34,7 @@ export const CropChatbot: React.FC<CropChatbotProps> = ({ currentLanguage }) => 
       id: 'init-msg',
       role: 'model',
       text:
-        currentLanguage === 'ny'
-          ? 'Moni! Ndine Wothandizira wanu wa za Ulimi wa Crop Doctor AI. Kodi muli ndi funso lokhudza matenda a mbeu zanu, chitetezo cha chimanga, kapena njira zachilengedwe zotetezera munda wanu ku Malawi?'
-          : currentLanguage === 'tum'
-          ? 'Moni! Ndine Mulara wa vya Ulimi wa Crop Doctor AI. Kasi muli na fumbo lakukhwaskana na vyomela vinu, ngoma panji hona mu Malawi?'
-          : 'Hello! I am your Crop Doctor AI Agronomic Assistant. How can I assist you with your maize, tobacco, or field crop pest management today in Malawi?',
+        'Hello! I am your Crop Doctor AI Agronomic Assistant. How can I assist you with your maize, tobacco, or field crop pest management today in Malawi?',
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
     },
   ]);
@@ -111,9 +107,7 @@ export const CropChatbot: React.FC<CropChatbotProps> = ({ currentLanguage }) => 
         id: 'reply-err-' + Date.now(),
         role: 'model',
         text:
-          currentLanguage === 'ny'
-            ? 'Pepani, panopa sitinathe kulumikizana ndi makina. Koma kumbukirani: yambani ndi kutola mbozi ndi manja, kusalira munda, ndi kufunsa Mlangizi wa za Ulimi wa ku EPA wanu.'
-            : 'I encountered a connection delay. Remember: always prioritize low-risk scouting, manual caterpillar picking, and consult your local EPA Extension Officer before applying chemicals.',
+          'I encountered a connection delay. Remember: always prioritize low-risk scouting, manual caterpillar picking, and consult your local EPA Extension Officer before applying chemicals.',
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       };
       setMessages((prev) => [...prev, fallbackMsg]);
@@ -124,19 +118,19 @@ export const CropChatbot: React.FC<CropChatbotProps> = ({ currentLanguage }) => 
 
   const sampleQuestions = [
     {
-      label: currentLanguage === 'ny' ? 'Kutola mbozi ya chiwawa (Buba)' : 'Scouting Fall Armyworm',
+      label: 'Scouting Fall Armyworm',
       query: 'How to scout and hand-pick Fall Armyworm in smallholder maize?',
     },
     {
-      label: currentLanguage === 'ny' ? 'Mbeu zotsutsana ndi matenda' : 'Maize Streak Prevention',
+      label: 'Maize Streak Prevention',
       query: 'What cultural practices prevent Maize Streak Virus transmission by leafhoppers?',
     },
     {
-      label: currentLanguage === 'ny' ? 'Kapezedwe ka mankhwala ku Sitolo' : 'Agro-dealer Certified Products',
+      label: 'Agro-dealer Certified Products',
       query: 'What certified bio-rational options exist at licensed agro-dealers in Malawi?',
     },
     {
-      label: currentLanguage === 'ny' ? 'Kusakaniza mbewu (Push-Pull)' : 'Intercropping with Legumes',
+      label: 'Intercropping with Legumes',
       query: 'How does intercropping maize with beans or desmodium deter pests?',
     },
   ];
@@ -159,7 +153,7 @@ export const CropChatbot: React.FC<CropChatbotProps> = ({ currentLanguage }) => 
               </span>
             </div>
             <p className="text-[11px] text-emerald-200/80">
-              Zero-dose safety compliant agronomic guidance in {currentLanguage === 'ny' ? 'Chichewa' : currentLanguage === 'tum' ? 'Chitumbuka' : 'English'}
+              Zero-dose safety compliant agronomic guidance in English
             </p>
           </div>
         </div>
@@ -300,12 +294,7 @@ export const CropChatbot: React.FC<CropChatbotProps> = ({ currentLanguage }) => 
           value={inputText}
           onChange={(e) => setInputText(e.target.value)}
           placeholder={
-            currentLanguage === 'ny'
-              ? 'Lembani funso lanu la za ulimi apa (mwachitsanzo: Kodi ndingateteze bwanji fodya ku mawanga?)...'
-              : currentLanguage === 'tum'
-              ? 'Lembani fumbo linu la za ulimi pano...'
-              : 'Ask an agricultural question (e.g. How to manage Fall Armyworm without high chemicals?)...'
-          }
+            'Ask an agricultural question (e.g. How to manage Fall Armyworm without high chemicals?)...'}
           className="flex-1 text-xs sm:text-sm px-4 py-2.5 bg-stone-50 border border-stone-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white transition-all"
         />
 

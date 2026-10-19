@@ -1,4 +1,4 @@
-import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import {
   User,
   onAuthStateChanged,
@@ -8,6 +8,9 @@ import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
   sendPasswordResetEmail,
+  RecaptchaVerifier,
+  signInWithPhoneNumber,
+  ConfirmationResult,
 } from 'firebase/auth';
 import { doc, onSnapshot, writeBatch } from 'firebase/firestore';
 import { auth, db, googleProvider, testConnection } from '../lib/firebase';
@@ -96,6 +99,10 @@ interface AuthContextType {
   signUpWithEmail: (email: string, password: string) => Promise<void>;
   signInWithEmail: (email: string, password: string) => Promise<void>;
   sendPasswordReset: (email: string) => Promise<void>;
+  /** Phone: text a 6-digit code to the number (E.164 format, e.g. +265888123456) */
+  sendPhoneCode: (phoneE164: string, recaptchaContainerId: string) => Promise<void>;
+  /** Phone: check the code the user received. Signs them in when correct. */
+  confirmPhoneCode: (code: string) => Promise<void>;
   createAccount: (input: NewAccountInput) => Promise<void>;
   signOut: () => Promise<void>;
   /** Authorization header for calls to our own /api routes */
@@ -119,6 +126,8 @@ const AuthContext = createContext<AuthContextType>({
   signUpWithEmail: async () => {},
   signInWithEmail: async () => {},
   sendPasswordReset: async () => {},
+  sendPhoneCode: async () => {},
+  confirmPhoneCode: async () => {},
   createAccount: async () => {},
   signOut: async () => {},
   getAuthHeaders: async () => ({}),
@@ -250,6 +259,39 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     await sendPasswordResetEmail(auth, email.trim());
   }, []);
 
+  // Phone sign-in: invisible reCAPTCHA first, then an SMS code
+  const confirmationRef = useRef<ConfirmationResult | null>(null);
+  const verifierRef = useRef<RecaptchaVerifier | null>(null);
+
+  const sendPhoneCode = useCallback(async (phoneE164: string, recaptchaContainerId: string) => {
+    // A fresh verifier each time avoids "reCAPTCHA already rendered" errors after a failed try
+    try {
+      verifierRef.current?.clear();
+    } catch {
+      // already gone
+    }
+    verifierRef.current = new RecaptchaVerifier(auth, recaptchaContainerId, { size: 'invisible' });
+    try {
+      confirmationRef.current = await signInWithPhoneNumber(auth, phoneE164, verifierRef.current);
+    } catch (err) {
+      try {
+        verifierRef.current?.clear();
+      } catch {
+        // ignore
+      }
+      verifierRef.current = null;
+      throw err;
+    }
+  }, []);
+
+  const confirmPhoneCode = useCallback(async (code: string) => {
+    if (!confirmationRef.current) {
+      throw Object.assign(new Error('Please request a new code.'), { code: 'auth/code-expired' });
+    }
+    await confirmationRef.current.confirm(code.trim());
+    confirmationRef.current = null;
+  }, []);
+
   const createAccount = useCallback(
     async (input: NewAccountInput) => {
       const user = auth.currentUser;
@@ -323,6 +365,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         signUpWithEmail,
         signInWithEmail,
         sendPasswordReset,
+        sendPhoneCode,
+        confirmPhoneCode,
         createAccount,
         signOut,
         getAuthHeaders,

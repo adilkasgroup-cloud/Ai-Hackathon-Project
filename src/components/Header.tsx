@@ -8,7 +8,6 @@ export type AppTab = 'diagnose' | 'chat' | 'farmer_replies' | 'science' | 'exten
 
 interface HeaderProps {
   currentLanguage: Language;
-  onLanguageChange: (lang: Language) => void;
   activeTab: AppTab;
   onTabChange: (tab: AppTab) => void;
   hasApiKey: boolean;
@@ -20,7 +19,6 @@ interface HeaderProps {
 
 export const Header: React.FC<HeaderProps> = ({
   currentLanguage,
-  onLanguageChange,
   activeTab,
   onTabChange,
   hasApiKey,
@@ -115,43 +113,6 @@ export const Header: React.FC<HeaderProps> = ({
                 </button>
               </div>
             )}
-
-            {/* Language Switcher */}
-            <div className="flex items-center gap-1 bg-emerald-950/70 p-0.5 rounded-lg border border-emerald-700/60 shrink-0">
-              <button
-                onClick={() => onLanguageChange('en')}
-                className={`px-2 py-0.5 text-xs font-semibold rounded transition-all ${
-                  currentLanguage === 'en'
-                    ? 'bg-emerald-500 text-white shadow-xs'
-                    : 'text-emerald-200 hover:text-white'
-                }`}
-                title="English"
-              >
-                EN
-              </button>
-              <button
-                onClick={() => onLanguageChange('ny')}
-                className={`px-2 py-0.5 text-xs font-semibold rounded transition-all ${
-                  currentLanguage === 'ny'
-                    ? 'bg-emerald-500 text-white shadow-xs'
-                    : 'text-emerald-200 hover:text-white'
-                }`}
-                title="Chichewa"
-              >
-                Chichewa
-              </button>
-              <button
-                onClick={() => onLanguageChange('tum')}
-                className={`px-2 py-0.5 text-xs font-semibold rounded transition-all ${
-                  currentLanguage === 'tum'
-                    ? 'bg-emerald-500 text-white shadow-xs'
-                    : 'text-emerald-200 hover:text-white'
-                }`}
-                title="Chitumbuka"
-              >
-                Tumbuka
-              </button>
-            </div>
           </div>
         </div>
       </div>

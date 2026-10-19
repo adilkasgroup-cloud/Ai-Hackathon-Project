@@ -307,12 +307,7 @@ export const EscalationModal: React.FC<EscalationModalProps> = ({
                   value={fieldDescription}
                   onChange={(e) => setFieldDescription(e.target.value)}
                   placeholder={
-                    currentLanguage === 'ny'
-                      ? 'Fotokozani mwachidule vuto la m\'munda: mwachitsanzo nthawi imene mbeu zayamba kudwala, kapena kukula kwa munda umene wawonongeka...'
-                      : currentLanguage === 'tum'
-                      ? 'Lembani umo vyomela vikuwonekera mu munda, na nyengo iyo vyayambira...'
-                      : 'Add a description for the extension officer: e.g. when symptoms started, affected field area, weather conditions, or specific questions...'
-                  }
+                    'Add a description for the extension officer: e.g. when symptoms started, affected field area, weather conditions, or specific questions...'}
                   className="w-full text-xs p-3.5 bg-stone-50 border border-stone-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:bg-white focus:outline-none resize-none leading-relaxed"
                 />
               </div>

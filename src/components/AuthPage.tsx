@@ -40,9 +40,17 @@ export const AuthPage: React.FC<AuthPageProps> = ({ currentLanguage, onClose }) 
     signUpWithEmail,
     signInWithEmail,
     sendPasswordReset,
+    sendPhoneCode,
+    confirmPhoneCode,
     createAccount,
     signOut,
   } = useAuth();
+
+  // How the visitor wants to sign in: phone (SMS code) or email + password
+  const [method, setMethod] = useState<'phone' | 'email'>('phone');
+  const [phoneInput, setPhoneInput] = useState('');
+  const [phoneStep, setPhoneStep] = useState<'enter' | 'code'>('enter');
+  const [smsCode, setSmsCode] = useState('');
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -61,9 +69,16 @@ export const AuthPage: React.FC<AuthPageProps> = ({ currentLanguage, onClose }) 
   // Switching between Sign in and Sign up starts the form fresh
   useEffect(() => {
     setResetMode(false);
+    setPhoneStep('enter');
+    setSmsCode('');
     setError('');
     setInfo('');
   }, [authView]);
+
+  // Phone sign-in already proves the number, so fill it in for the account form
+  useEffect(() => {
+    if (firebaseUser?.phoneNumber) setPhone(firebaseUser.phoneNumber);
+  }, [firebaseUser]);
 
   // Pre-fill the name from Google once
   useEffect(() => {
@@ -106,8 +121,72 @@ export const AuthPage: React.FC<AuthPageProps> = ({ currentLanguage, onClose }) 
         return 'Email sign-in is not switched on yet. Enable it in Firebase > Authentication > Sign-in method > Email/Password.';
       case 'auth/network-request-failed':
         return 'No internet connection. Please check your network and try again.';
+      case 'auth/invalid-phone-number':
+      case 'auth/missing-phone-number':
+        return 'That phone number does not look right. Try the format 0888 123 456 or +265 888 123 456.';
+      case 'auth/invalid-verification-code':
+      case 'auth/missing-verification-code':
+        return 'That code is not correct. Check the SMS and try again.';
+      case 'auth/code-expired':
+      case 'auth/session-expired':
+        return 'That code has expired. Please request a new one.';
+      case 'auth/captcha-check-failed':
+        return 'We could not confirm you are not a robot. Please try again.';
+      case 'auth/quota-exceeded':
+      case 'auth/billing-not-enabled':
+        return 'SMS codes are not available right now. Please use email instead, or try again later.';
+      case 'auth/unauthorized-domain':
+        return 'This website address has not been allowed for sign-in yet. Add it under Firebase > Authentication > Settings > Authorized domains.';
       default:
         return err?.message || 'Something went wrong. Please try again.';
+    }
+  };
+
+  /** Turn what a farmer types (0888 123 456, 265888123456, +265 888 123 456) into +265888123456 */
+  const toE164 = (raw: string): string | null => {
+    const digits = raw.replace(/[^\d+]/g, '');
+    let n = digits;
+    if (n.startsWith('+')) n = n.slice(1);
+    else if (n.startsWith('00')) n = n.slice(2);
+    else if (n.startsWith('0')) n = '265' + n.slice(1);
+    else if (n.length === 9) n = '265' + n; // 888123456
+    return /^\d{10,15}$/.test(n) ? '+' + n : null;
+  };
+
+  const handleSendCode = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setInfo('');
+    const e164 = toE164(phoneInput);
+    if (!e164) return setError(friendlyAuthError({ code: 'auth/invalid-phone-number' }));
+    setBusy(true);
+    try {
+      await sendPhoneCode(e164, 'recaptcha-container');
+      setPhoneStep('code');
+      setInfo(`We sent a 6-digit code by SMS to ${e164}.`);
+    } catch (err: any) {
+      setError(
+        err?.code === 'auth/operation-not-allowed'
+          ? 'Phone sign-in is not switched on yet. Enable it in Firebase > Authentication > Sign-in method > Phone.'
+          : friendlyAuthError(err)
+      );
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleConfirmCode = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setInfo('');
+    if (smsCode.replace(/\D/g, '').length < 6) return setError(friendlyAuthError({ code: 'auth/invalid-verification-code' }));
+    setBusy(true);
+    try {
+      await confirmPhoneCode(smsCode);
+    } catch (err: any) {
+      setError(friendlyAuthError(err));
+    } finally {
+      setBusy(false);
     }
   };
 
@@ -244,12 +323,103 @@ export const AuthPage: React.FC<AuthPageProps> = ({ currentLanguage, onClose }) 
 
                     <div className="flex items-center gap-3 text-[11px] text-stone-400 uppercase tracking-wide">
                       <span className="flex-1 h-px bg-stone-200" />
-                      <span>or use your email</span>
+                      <span>or</span>
                       <span className="flex-1 h-px bg-stone-200" />
+                    </div>
+
+                    {/* Phone or email */}
+                    <div className="grid grid-cols-2 gap-1 p-1 bg-stone-100 rounded-xl">
+                      {(['phone', 'email'] as const).map((m) => (
+                        <button
+                          key={m}
+                          type="button"
+                          onClick={() => {
+                            setMethod(m);
+                            setError('');
+                            setInfo('');
+                          }}
+                          className={`py-2 text-xs font-bold rounded-lg transition-colors cursor-pointer ${
+                            method === m ? 'bg-white text-emerald-800 shadow-xs' : 'text-stone-500 hover:text-stone-800'
+                          }`}
+                        >
+                          {m === 'phone' ? 'Phone number' : 'Email'}
+                        </button>
+                      ))}
                     </div>
                   </>
                 )}
 
+                {/* Invisible reCAPTCHA sits here (required by Firebase phone sign-in) */}
+                <div id="recaptcha-container" />
+
+                {/* PHONE: step 1, enter number */}
+                {method === 'phone' && !resetMode && phoneStep === 'enter' && (
+                  <form onSubmit={handleSendCode} className="space-y-3">
+                    <div>
+                      <label className="block text-xs font-bold text-stone-800 mb-1">Phone number</label>
+                      <input
+                        className={`${inputClass} font-mono`}
+                        type="tel"
+                        autoComplete="tel"
+                        value={phoneInput}
+                        onChange={(e) => setPhoneInput(e.target.value)}
+                        placeholder="0888 123 456"
+                        required
+                      />
+                      <p className="text-[11px] text-stone-500 mt-1">We will text you a 6-digit code. Standard SMS rates may apply.</p>
+                    </div>
+                    <button
+                      type="submit"
+                      disabled={busy}
+                      className="w-full py-3 bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-sm rounded-xl shadow-xs transition-colors cursor-pointer disabled:opacity-50"
+                    >
+                      {busy ? 'Sending code…' : 'Send me a code'}
+                    </button>
+                  </form>
+                )}
+
+                {/* PHONE: step 2, enter the code */}
+                {method === 'phone' && !resetMode && phoneStep === 'code' && (
+                  <form onSubmit={handleConfirmCode} className="space-y-3">
+                    <div>
+                      <label className="block text-xs font-bold text-stone-800 mb-1">6-digit code</label>
+                      <input
+                        className={`${inputClass} font-mono tracking-[0.4em] text-center text-lg`}
+                        type="text"
+                        inputMode="numeric"
+                        autoComplete="one-time-code"
+                        maxLength={6}
+                        value={smsCode}
+                        onChange={(e) => setSmsCode(e.target.value.replace(/\D/g, ''))}
+                        placeholder="••••••"
+                        required
+                      />
+                    </div>
+                    <button
+                      type="submit"
+                      disabled={busy}
+                      className="w-full py-3 bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-sm rounded-xl shadow-xs transition-colors cursor-pointer disabled:opacity-50"
+                    >
+                      {busy ? 'Checking…' : authView === 'signup' ? 'Verify and continue' : 'Verify and sign in'}
+                    </button>
+                    <div className="text-center">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setPhoneStep('enter');
+                          setSmsCode('');
+                          setError('');
+                          setInfo('');
+                        }}
+                        className="text-xs text-emerald-700 font-semibold hover:underline cursor-pointer"
+                      >
+                        Wrong number or no code? Go back
+                      </button>
+                    </div>
+                  </form>
+                )}
+
+                {(method === 'email' || resetMode) && (
                 <form onSubmit={handleEmailSubmit} className="space-y-3">
                   {resetMode && (
                     <p className="text-sm text-stone-600">Enter your email and we will send you a link to choose a new password.</p>
@@ -310,6 +480,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({ currentLanguage, onClose }) 
                     </div>
                   )}
                 </form>
+                )}
 
                 <p className="text-center text-sm text-stone-600">
                   {authView === 'signup' ? (
@@ -347,7 +518,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({ currentLanguage, onClose }) 
                     {authView === 'signin' ? 'Finish creating your account' : 'Tell us about you'}
                   </h1>
                   <p className="text-sm text-stone-500">
-                    Signed in as <strong className="text-stone-700">{firebaseUser?.email}</strong>.{' '}
+                    Signed in as <strong className="text-stone-700">{firebaseUser?.email || firebaseUser?.phoneNumber}</strong>.{' '}
                     <button type="button" onClick={signOut} className="text-emerald-700 font-semibold hover:underline cursor-pointer">
                       Use a different account
                     </button>
@@ -356,7 +527,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({ currentLanguage, onClose }) 
 
                 {authView === 'signin' && (
                   <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-900">
-                    We couldn't find a Crop Doctor account for this Google account yet. Fill in the details below to create one
+                    We couldn't find a Crop Doctor account for this sign-in yet. Fill in the details below to create one
                     (you only do this once).
                   </div>
                 )}
@@ -419,9 +590,11 @@ export const AuthPage: React.FC<AuthPageProps> = ({ currentLanguage, onClose }) 
                     type="tel"
                     value={phone}
                     onChange={(e) => setPhone(e.target.value)}
+                    readOnly={!!firebaseUser?.phoneNumber}
                     placeholder="+265 888 123 456"
                     required
                   />
+                  {firebaseUser?.phoneNumber && <p className="text-[11px] text-emerald-700 mt-1">Verified by SMS code.</p>}
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">

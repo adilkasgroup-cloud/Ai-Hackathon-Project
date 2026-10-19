@@ -39,12 +39,12 @@ export const PhotoUploader: React.FC<PhotoUploaderProps> = ({
   };
 
   const cropOptions = [
-    { id: 'Maize', en: 'Maize', ny: 'Chimanga', tum: 'Ngoma' },
-    { id: 'Tobacco', en: 'Tobacco', ny: 'Fodya', tum: 'Hona' },
-    { id: 'Groundnuts', en: 'Groundnuts', ny: 'Mtedza', tum: 'Syaba' },
-    { id: 'Beans', en: 'Beans / Legumes', ny: 'Nyemba / Nandolo', tum: 'Ntchana' },
-    { id: 'Cassava', en: 'Cassava', ny: 'Chinangwa', tum: 'Chinangwa' },
-    { id: 'Other', en: 'Other Crop', ny: 'Mbeu Ina', tum: 'Chomela Chinyake' },
+    { id: 'Maize', en: 'Maize' },
+    { id: 'Tobacco', en: 'Tobacco' },
+    { id: 'Groundnuts', en: 'Groundnuts' },
+    { id: 'Beans', en: 'Beans / Legumes' },
+    { id: 'Cassava', en: 'Cassava' },
+    { id: 'Other', en: 'Other Crop' },
   ];
 
   return (
@@ -61,11 +61,7 @@ export const PhotoUploader: React.FC<PhotoUploaderProps> = ({
             {t.tagline}
           </h2>
           <p className="text-emerald-100/90 text-sm sm:text-base leading-relaxed">
-            {currentLanguage === 'ny'
-              ? 'Jambulani chithunzi cha tsamba, tsinde kapena ngala yodwala kuti mudziwe vuto lake mwamsanga ndi njira zoyambira zodzitetezera popanda kutaya ndalama.'
-              : currentLanguage === 'tum'
-              ? 'Torani chithuzi cha jani panji chomela cholwala kuti mumanye suzu yake mwaluŵiro na nthowa ziwemi zakujivikilira pambere mundanange ndalama.'
-              : 'Photograph a sick leaf, stem, or cob to get an immediate diagnosis with low-risk cultural solutions and extension officer escalation.'}
+            {'Photograph a sick leaf, stem, or cob to get an immediate diagnosis with low-risk cultural solutions and extension officer escalation.'}
           </p>
         </div>
 
@@ -128,11 +124,7 @@ export const PhotoUploader: React.FC<PhotoUploaderProps> = ({
             <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-3 bg-emerald-950/60 p-3.5 rounded-xl border border-emerald-700/50">
               <div>
                 <label className="block text-xs font-semibold text-emerald-200 mb-1.5">
-                  {currentLanguage === 'ny'
-                    ? 'Mtundu wa Mbeu:'
-                    : currentLanguage === 'tum'
-                    ? 'Mtundu wa Chomela:'
-                    : 'Crop Type:'}
+                  {'Crop Type:'}
                 </label>
                 <div className="grid grid-cols-3 gap-1.5">
                   {cropOptions.map((opt) => (
@@ -146,11 +138,7 @@ export const PhotoUploader: React.FC<PhotoUploaderProps> = ({
                           : 'bg-emerald-900/50 text-emerald-200 border-emerald-800 hover:bg-emerald-800/60'
                       }`}
                     >
-                      {currentLanguage === 'ny'
-                        ? opt.ny
-                        : currentLanguage === 'tum'
-                        ? opt.tum
-                        : opt.en}
+                      {opt.en}
                     </button>
                   ))}
                 </div>
@@ -158,23 +146,14 @@ export const PhotoUploader: React.FC<PhotoUploaderProps> = ({
 
               <div>
                 <label className="block text-xs font-semibold text-emerald-200 mb-1.5">
-                  {currentLanguage === 'ny'
-                    ? 'Mfundo za m\'munda (Ngati zilipo):'
-                    : currentLanguage === 'tum'
-                    ? 'Mazgo gha mu munda:'
-                    : 'Field observations / notes:'}
+                  {'Field observations / notes:'}
                 </label>
                 <input
                   type="text"
                   value={farmerNotes}
                   onChange={(e) => setFarmerNotes(e.target.value)}
                   placeholder={
-                    currentLanguage === 'ny'
-                      ? 'Mwachitsanzo: Zayamba sabata yatha, m\'munda wa mphanje...'
-                      : currentLanguage === 'tum'
-                      ? 'Mwachiyelezgero: Vikwambika sabata yamala...'
-                      : 'e.g. Started after heavy rain on 4-week old crop...'
-                  }
+                    'e.g. Started after heavy rain on 4-week old crop...'}
                   className="w-full text-xs px-3 py-2 bg-emerald-900/40 border border-emerald-700/70 rounded-lg text-white placeholder-emerald-300/40 focus:outline-none focus:ring-1 focus:ring-emerald-400"
                 />
               </div>
@@ -229,17 +208,9 @@ export const PhotoUploader: React.FC<PhotoUploaderProps> = ({
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
           {SAMPLE_CASES.map((sample) => {
             const title =
-              currentLanguage === 'ny'
-                ? sample.titleChichewa
-                : currentLanguage === 'tum'
-                ? sample.titleTumbuka
-                : sample.title;
+              sample.title;
             const crop =
-              currentLanguage === 'ny'
-                ? sample.cropChichewa
-                : currentLanguage === 'tum'
-                ? sample.cropTumbuka
-                : sample.crop;
+              sample.crop;
 
             const isLowClarity = sample.category === 'unclear';
 

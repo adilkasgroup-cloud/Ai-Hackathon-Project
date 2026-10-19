@@ -1,196 +1,13 @@
 import { SamplePhotoCase } from '../types/crop';
 
-// Realistic inline SVG representations for agricultural samples
-const fallArmywormSvg = `data:image/svg+xml;utf8,${encodeURIComponent(`
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300" width="100%" height="100%">
-  <defs>
-    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#2d5a27"/>
-      <stop offset="50%" stop-color="#467c38"/>
-      <stop offset="100%" stop-color="#1e3f1a"/>
-    </linearGradient>
-    <linearGradient id="leaf" x1="0%" y1="0%" x2="80%" y2="100%">
-      <stop offset="0%" stop-color="#5fa343"/>
-      <stop offset="50%" stop-color="#4b8932"/>
-      <stop offset="100%" stop-color="#2e591c"/>
-    </linearGradient>
-    <radialGradient id="hole" cx="50%" cy="50%" r="50%">
-      <stop offset="0%" stop-color="#422918"/>
-      <stop offset="80%" stop-color="#7c5836"/>
-      <stop offset="100%" stop-color="#2a4e1a"/>
-    </radialGradient>
-  </defs>
-  <rect width="400" height="300" fill="url(#bg)"/>
-  
-  <!-- Maize stalk and whorl -->
-  <path d="M 200,300 C 190,200 180,120 195,40 C 205,120 215,200 205,300 Z" fill="#3d6c29"/>
-  <path d="M 195,150 Q 80,120 20,180 Q 90,220 195,190 Z" fill="url(#leaf)"/>
-  <path d="M 205,130 Q 320,90 380,160 Q 310,210 205,170 Z" fill="url(#leaf)"/>
-  <path d="M 200,90 Q 120,40 50,70 Q 130,110 198,110 Z" fill="url(#leaf)"/>
-  <path d="M 202,70 Q 280,30 360,50 Q 270,90 202,95 Z" fill="url(#leaf)"/>
+// Real field photos for the preloaded sample cases (served from /public/samples)
+const fallArmywormImg = '/samples/fall-armyworm.jpg';
 
-  <!-- Midrib lines -->
-  <path d="M 195,170 Q 100,150 25,180" stroke="#8ec86c" stroke-width="3" fill="none"/>
-  <path d="M 205,150 Q 300,125 375,160" stroke="#8ec86c" stroke-width="3" fill="none"/>
+const maizeStreakImg = '/samples/maize-streak.jpg';
 
-  <!-- Armyworm windowpane feeding & ragged holes -->
-  <path d="M 110,140 Q 125,130 140,145 Q 120,160 110,140 Z" fill="url(#hole)" stroke="#a17c4b" stroke-width="1.5"/>
-  <path d="M 70,160 Q 85,155 95,170 Q 80,180 70,160 Z" fill="url(#hole)"/>
-  <path d="M 150,155 Q 170,150 165,165 Q 155,170 150,155 Z" fill="url(#hole)"/>
-  <path d="M 240,125 Q 260,115 270,135 Q 250,145 240,125 Z" fill="url(#hole)" stroke="#a17c4b" stroke-width="1.5"/>
-  <path d="M 290,135 Q 310,130 315,145 Q 300,155 290,135 Z" fill="url(#hole)"/>
+const tobaccoCercosporaImg = '/samples/tobacco-frog-eye.jpg';
 
-  <!-- Yellowish "windowing" translucent leaf patches -->
-  <ellipse cx="130" cy="150" rx="30" ry="12" fill="#d4c965" opacity="0.45"/>
-  <ellipse cx="265" cy="130" rx="35" ry="14" fill="#d4c965" opacity="0.45"/>
-  
-  <!-- Frass (sawdust-like droppings in whorl) -->
-  <circle cx="196" cy="115" r="2.5" fill="#785025"/>
-  <circle cx="192" cy="120" r="3" fill="#603e1b"/>
-  <circle cx="201" cy="118" r="2" fill="#503316"/>
-  <circle cx="198" cy="125" r="3.5" fill="#69431d"/>
-  <circle cx="204" cy="122" r="2.5" fill="#785025"/>
-
-  <!-- Fall armyworm caterpillar visible in whorl -->
-  <path d="M 188,105 Q 198,112 208,107 Q 212,111 202,118 Q 186,114 188,105 Z" fill="#5a6839" stroke="#37411f" stroke-width="1"/>
-  <!-- Inverted Y-shape marking on head capsule -->
-  <circle cx="187" cy="107" r="2.5" fill="#2b2015"/>
-  <path d="M 186,106 L 187,108 M 187,108 L 188,106" stroke="#f6f3cc" stroke-width="0.8"/>
-  
-  <text x="14" y="28" fill="#ffffff" font-family="sans-serif" font-size="13" font-weight="bold" opacity="0.9">Field Photo: Maize Leaf &amp; Whorl</text>
-  <rect x="12" y="260" width="130" height="26" rx="4" fill="rgba(0,0,0,0.6)"/>
-  <text x="20" y="277" fill="#86efac" font-family="sans-serif" font-size="11" font-weight="bold">Lilongwe West EPA</text>
-</svg>
-`)}`;
-
-const maizeStreakSvg = `data:image/svg+xml;utf8,${encodeURIComponent(`
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300" width="100%" height="100%">
-  <defs>
-    <linearGradient id="msv_bg" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#1b4317"/>
-      <stop offset="100%" stop-color="#0f290d"/>
-    </linearGradient>
-    <linearGradient id="msv_leaf" x1="0%" y1="0%" x2="100%" y2="80%">
-      <stop offset="0%" stop-color="#559938"/>
-      <stop offset="100%" stop-color="#3b7024"/>
-    </linearGradient>
-  </defs>
-  <rect width="400" height="300" fill="url(#msv_bg)"/>
-
-  <!-- Big close-up maize leaf diagonally -->
-  <path d="M 30,290 C 80,180 180,100 380,20 C 370,110 300,220 180,290 Z" fill="url(#msv_leaf)"/>
-  <path d="M 30,290 C 150,170 260,95 380,20" stroke="#a3d977" stroke-width="5" fill="none"/>
-
-  <!-- Parallel chlorotic streak striations along leaf veins (classic MSV) -->
-  <g stroke="#fef08a" stroke-width="1.8" opacity="0.9" stroke-linecap="round">
-    <line x1="80" y1="230" x2="140" y2="190"/>
-    <line x1="90" y1="245" x2="170" y2="190"/>
-    <line x1="120" y1="210" x2="220" y2="145"/>
-    <line x1="140" y1="230" x2="250" y2="150"/>
-    <line x1="160" y1="180" x2="270" y2="110"/>
-    <line x1="180" y1="205" x2="290" y2="130"/>
-    <line x1="210" y1="160" x2="310" y2="90"/>
-    <line x1="230" y1="185" x2="330" y2="115"/>
-    <line x1="260" y1="130" x2="340" y2="70"/>
-    <line x1="280" y1="150" x2="360" y2="95"/>
-    <line x1="105" y1="220" x2="155" y2="185"/>
-    <line x1="135" y1="195" x2="195" y2="150"/>
-    <line x1="195" y1="145" x2="245" y2="110"/>
-    <line x1="240" y1="110" x2="300" y2="70"/>
-  </g>
-
-  <g stroke="#fef9c3" stroke-width="1" opacity="0.6">
-    <line x1="110" y1="260" x2="130" y2="245"/>
-    <line x1="140" y1="250" x2="180" y2="220"/>
-    <line x1="200" y1="220" x2="240" y2="190"/>
-    <line x1="270" y1="170" x2="310" y2="140"/>
-  </g>
-
-  <text x="14" y="28" fill="#ffffff" font-family="sans-serif" font-size="13" font-weight="bold" opacity="0.9">Field Photo: Maize Leaf Vein Chlorosis</text>
-  <rect x="12" y="260" width="125" height="26" rx="4" fill="rgba(0,0,0,0.6)"/>
-  <text x="20" y="277" fill="#fde047" font-family="sans-serif" font-size="11" font-weight="bold">Dedza East EPA</text>
-</svg>
-`)}`;
-
-const tobaccoCercosporaSvg = `data:image/svg+xml;utf8,${encodeURIComponent(`
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300" width="100%" height="100%">
-  <defs>
-    <linearGradient id="tob_bg" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#3d4a23"/>
-      <stop offset="100%" stop-color="#232e13"/>
-    </linearGradient>
-    <linearGradient id="tob_leaf" x1="0%" y1="0%" x2="70%" y2="100%">
-      <stop offset="0%" stop-color="#739e3f"/>
-      <stop offset="60%" stop-color="#5c8230"/>
-      <stop offset="100%" stop-color="#486824"/>
-    </linearGradient>
-  </defs>
-  <rect width="400" height="300" fill="url(#tob_bg)"/>
-
-  <!-- Broad fleshy tobacco leaf -->
-  <path d="M 200,285 C 60,250 30,120 120,40 C 200,10 280,30 350,110 C 380,210 290,270 200,285 Z" fill="url(#tob_leaf)"/>
-  <!-- Main leaf vein -->
-  <path d="M 200,280 C 190,180 185,110 180,45" stroke="#a4cb74" stroke-width="4.5" fill="none"/>
-  <!-- Lateral veins -->
-  <path d="M 195,220 C 130,200 80,180 65,160" stroke="#93ba64" stroke-width="2" fill="none"/>
-  <path d="M 190,160 C 120,140 85,115 75,90" stroke="#93ba64" stroke-width="2" fill="none"/>
-  <path d="M 197,200 C 260,185 310,165 335,145" stroke="#93ba64" stroke-width="2" fill="none"/>
-  <path d="M 192,140 C 255,120 295,95 315,75" stroke="#93ba64" stroke-width="2" fill="none"/>
-
-  <!-- Frog-eye leaf spot lesions: circular brown border with ash-grey center -->
-  <!-- Spot 1 -->
-  <circle cx="130" cy="120" r="14" fill="#543719" stroke="#36220e" stroke-width="1.5"/>
-  <circle cx="130" cy="120" r="8" fill="#d1cbba"/>
-  <circle cx="130" cy="120" r="2" fill="#4d3215"/>
-
-  <!-- Spot 2 -->
-  <circle cx="260" cy="110" r="16" fill="#543719" stroke="#36220e" stroke-width="1.5"/>
-  <circle cx="260" cy="110" r="9" fill="#dcd7c9"/>
-  <circle cx="260" cy="110" r="2.5" fill="#4d3215"/>
-
-  <!-- Spot 3 -->
-  <circle cx="160" cy="190" r="11" fill="#543719" stroke="#36220e" stroke-width="1.5"/>
-  <circle cx="160" cy="190" r="6" fill="#d1cbba"/>
-
-  <!-- Spot 4 -->
-  <circle cx="230" cy="175" r="13" fill="#543719" stroke="#36220e" stroke-width="1.5"/>
-  <circle cx="230" cy="175" r="7" fill="#dcd7c9"/>
-
-  <!-- Spot 5 -->
-  <circle cx="285" cy="170" r="10" fill="#543719"/>
-  <circle cx="285" cy="170" r="5" fill="#d1cbba"/>
-
-  <!-- Yellow halos around lesions -->
-  <circle cx="130" cy="120" r="20" stroke="#d5d852" stroke-width="3" fill="none" opacity="0.45"/>
-  <circle cx="260" cy="110" r="22" stroke="#d5d852" stroke-width="3" fill="none" opacity="0.45"/>
-  <circle cx="230" cy="175" r="18" stroke="#d5d852" stroke-width="2" fill="none" opacity="0.45"/>
-
-  <text x="14" y="28" fill="#ffffff" font-family="sans-serif" font-size="13" font-weight="bold" opacity="0.9">Field Photo: Tobacco Leaf Spots</text>
-  <rect x="12" y="260" width="135" height="26" rx="4" fill="rgba(0,0,0,0.6)"/>
-  <text x="20" y="277" fill="#facc15" font-family="sans-serif" font-size="11" font-weight="bold">Kasungu North EPA</text>
-</svg>
-`)}`;
-
-const blurryUnclearSvg = `data:image/svg+xml;utf8,${encodeURIComponent(`
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300" width="100%" height="100%">
-  <defs>
-    <filter id="blurFilter" x="0" y="0">
-      <feGaussianBlur in="SourceGraphic" stdDeviation="7" />
-    </filter>
-  </defs>
-  <rect width="400" height="300" fill="#2d3b24"/>
-  <g filter="url(#blurFilter)">
-    <circle cx="200" cy="150" r="90" fill="#75993b"/>
-    <path d="M 120,200 Q 220,90 320,180" stroke="#927640" stroke-width="20" fill="none"/>
-    <circle cx="180" cy="130" r="25" fill="#38210f"/>
-    <ellipse cx="230" cy="170" rx="40" ry="25" fill="#d6c65b"/>
-  </g>
-  <rect x="0" y="0" width="400" height="300" fill="rgba(255,255,255,0.08)"/>
-  <text x="14" y="28" fill="#ffffff" font-family="sans-serif" font-size="13" font-weight="bold" opacity="0.9">Field Photo: Blurry / Unclear Foliage</text>
-  <rect x="12" y="255" width="220" height="32" rx="4" fill="rgba(185,28,28,0.85)"/>
-  <text x="20" y="276" fill="#ffffff" font-family="sans-serif" font-size="12" font-weight="bold">⚠️ Low Clarity Sample (Triggers Review)</text>
-</svg>
-`)}`;
+const blurryUnclearImg = '/samples/unclear-sample.jpg';
 
 export const SAMPLE_CASES: SamplePhotoCase[] = [
   {
@@ -202,8 +19,8 @@ export const SAMPLE_CASES: SamplePhotoCase[] = [
     titleChichewa: 'Mbozi ya Chiwawa (Buba)',
     titleTumbuka: 'Nthuchi ya Chiwawa (Buba)',
     category: 'pest',
-    imageUrl: fallArmywormSvg,
-    thumbnailUrl: fallArmywormSvg,
+    imageUrl: fallArmywormImg,
+    thumbnailUrl: fallArmywormImg,
     previewDescription: 'Whorl feeding holes, sawdust frass, leaf windowing',
     precomputedResult: {
       en: {
@@ -248,7 +65,7 @@ export const SAMPLE_CASES: SamplePhotoCase[] = [
         language: 'en',
         translationNeedsHumanReview: false,
         timestamp: new Date().toISOString(),
-        imageUrl: fallArmywormSvg,
+        imageUrl: fallArmywormImg,
       },
       ny: {
         id: 'diag-faw-ny',
@@ -292,7 +109,7 @@ export const SAMPLE_CASES: SamplePhotoCase[] = [
         language: 'ny',
         translationNeedsHumanReview: true,
         timestamp: new Date().toISOString(),
-        imageUrl: fallArmywormSvg,
+        imageUrl: fallArmywormImg,
       },
       tum: {
         id: 'diag-faw-tum',
@@ -336,7 +153,7 @@ export const SAMPLE_CASES: SamplePhotoCase[] = [
         language: 'tum',
         translationNeedsHumanReview: true,
         timestamp: new Date().toISOString(),
-        imageUrl: fallArmywormSvg,
+        imageUrl: fallArmywormImg,
       },
     },
   },
@@ -349,8 +166,8 @@ export const SAMPLE_CASES: SamplePhotoCase[] = [
     titleChichewa: 'Nthenda ya Mizere ya Chimanga',
     titleTumbuka: 'Nthenda ya Mizere mu Ngoma',
     category: 'disease',
-    imageUrl: maizeStreakSvg,
-    thumbnailUrl: maizeStreakSvg,
+    imageUrl: maizeStreakImg,
+    thumbnailUrl: maizeStreakImg,
     previewDescription: 'Chlorotic parallel yellow-white streaks on leaves',
     precomputedResult: {
       en: {
@@ -395,7 +212,7 @@ export const SAMPLE_CASES: SamplePhotoCase[] = [
         language: 'en',
         translationNeedsHumanReview: false,
         timestamp: new Date().toISOString(),
-        imageUrl: maizeStreakSvg,
+        imageUrl: maizeStreakImg,
       },
       ny: {
         id: 'diag-msv-ny',
@@ -439,7 +256,7 @@ export const SAMPLE_CASES: SamplePhotoCase[] = [
         language: 'ny',
         translationNeedsHumanReview: true,
         timestamp: new Date().toISOString(),
-        imageUrl: maizeStreakSvg,
+        imageUrl: maizeStreakImg,
       },
       tum: {
         id: 'diag-msv-tum',
@@ -483,7 +300,7 @@ export const SAMPLE_CASES: SamplePhotoCase[] = [
         language: 'tum',
         translationNeedsHumanReview: true,
         timestamp: new Date().toISOString(),
-        imageUrl: maizeStreakSvg,
+        imageUrl: maizeStreakImg,
       },
     },
   },
@@ -496,8 +313,8 @@ export const SAMPLE_CASES: SamplePhotoCase[] = [
     titleChichewa: 'Mawanga a Masamba a Fodya (Frog Eye)',
     titleTumbuka: 'Mawanga gha Hona (Frog Eye)',
     category: 'disease',
-    imageUrl: tobaccoCercosporaSvg,
-    thumbnailUrl: tobaccoCercosporaSvg,
+    imageUrl: tobaccoCercosporaImg,
+    thumbnailUrl: tobaccoCercosporaImg,
     previewDescription: 'Circular brown lesions with pale grey centers on mature leaves',
     precomputedResult: {
       en: {
@@ -542,7 +359,7 @@ export const SAMPLE_CASES: SamplePhotoCase[] = [
         language: 'en',
         translationNeedsHumanReview: false,
         timestamp: new Date().toISOString(),
-        imageUrl: tobaccoCercosporaSvg,
+        imageUrl: tobaccoCercosporaImg,
       },
       ny: {
         id: 'diag-cerc-ny',
@@ -586,7 +403,7 @@ export const SAMPLE_CASES: SamplePhotoCase[] = [
         language: 'ny',
         translationNeedsHumanReview: true,
         timestamp: new Date().toISOString(),
-        imageUrl: tobaccoCercosporaSvg,
+        imageUrl: tobaccoCercosporaImg,
       },
       tum: {
         id: 'diag-cerc-tum',
@@ -630,7 +447,7 @@ export const SAMPLE_CASES: SamplePhotoCase[] = [
         language: 'tum',
         translationNeedsHumanReview: true,
         timestamp: new Date().toISOString(),
-        imageUrl: tobaccoCercosporaSvg,
+        imageUrl: tobaccoCercosporaImg,
       },
     },
   },
@@ -643,8 +460,8 @@ export const SAMPLE_CASES: SamplePhotoCase[] = [
     titleChichewa: 'Chithunzi Chosamveka (Kutumiza kwa Mlangizi)',
     titleTumbuka: 'Chithuzi Chosawoneka Makora (Ku Mulara)',
     category: 'unclear',
-    imageUrl: blurryUnclearSvg,
-    thumbnailUrl: blurryUnclearSvg,
+    imageUrl: blurryUnclearImg,
+    thumbnailUrl: blurryUnclearImg,
     previewDescription: 'Blurry low-contrast foliage (triggers mandatory AEDO review)',
     precomputedResult: {
       en: {
@@ -690,7 +507,7 @@ export const SAMPLE_CASES: SamplePhotoCase[] = [
         language: 'en',
         translationNeedsHumanReview: false,
         timestamp: new Date().toISOString(),
-        imageUrl: blurryUnclearSvg,
+        imageUrl: blurryUnclearImg,
       },
       ny: {
         id: 'diag-unclear-ny',
@@ -735,7 +552,7 @@ export const SAMPLE_CASES: SamplePhotoCase[] = [
         language: 'ny',
         translationNeedsHumanReview: true,
         timestamp: new Date().toISOString(),
-        imageUrl: blurryUnclearSvg,
+        imageUrl: blurryUnclearImg,
       },
       tum: {
         id: 'diag-unclear-tum',
@@ -780,7 +597,7 @@ export const SAMPLE_CASES: SamplePhotoCase[] = [
         language: 'tum',
         translationNeedsHumanReview: true,
         timestamp: new Date().toISOString(),
-        imageUrl: blurryUnclearSvg,
+        imageUrl: blurryUnclearImg,
       },
     },
   },

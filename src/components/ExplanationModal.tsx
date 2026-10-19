@@ -9,7 +9,7 @@ interface ExplanationModalProps {
 }
 
 export const ExplanationModal: React.FC<ExplanationModalProps> = ({ currentLanguage, hasApiKey, onClose }) => {
-  const [activeSection, setActiveSection] = useState<'ai' | 'safety' | 'translation' | 'setup'>('ai');
+  const [activeSection, setActiveSection] = useState<'ai' | 'safety' | 'setup'>('ai');
 
   return (
     <div className="bg-white rounded-3xl border border-stone-200 shadow-sm overflow-hidden animate-in fade-in duration-300">
@@ -66,16 +66,6 @@ export const ExplanationModal: React.FC<ExplanationModalProps> = ({ currentLangu
             2. Safety & Zero-Dose Rules
           </button>
           <button
-            onClick={() => setActiveSection('translation')}
-            className={`px-3 py-1.5 rounded-xl font-bold transition-all shrink-0 cursor-pointer ${
-              activeSection === 'translation'
-                ? 'bg-white text-emerald-950 shadow-sm'
-                : 'text-emerald-200 hover:text-white hover:bg-emerald-800/50'
-            }`}
-          >
-            3. Chichewa & Tumbuka Review
-          </button>
-          <button
             onClick={() => setActiveSection('setup')}
             className={`px-3 py-1.5 rounded-xl font-bold transition-all shrink-0 cursor-pointer ${
               activeSection === 'setup'
@@ -83,7 +73,7 @@ export const ExplanationModal: React.FC<ExplanationModalProps> = ({ currentLangu
                 : 'text-emerald-200 hover:text-white hover:bg-emerald-800/50'
             }`}
           >
-            4. Setup & API Keys
+            3. Setup & API Keys
           </button>
         </div>
       </div>
@@ -179,56 +169,6 @@ export const ExplanationModal: React.FC<ExplanationModalProps> = ({ currentLangu
                     If AI confidence is below 70%, if the photo is blurry or unclear, or if the threat is high/critical, the app forces an alert and offers a 1-click dispatch to local Agricultural Extension Development Officers (AEDO) via EPA queues or WhatsApp.
                   </span>
                 </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {activeSection === 'translation' && (
-          <div className="space-y-4">
-            <div className="flex items-start gap-3">
-              <div className="p-2 rounded-xl bg-blue-100 text-blue-800 shrink-0 mt-0.5">
-                <Languages className="w-5 h-5" />
-              </div>
-              <div>
-                <h3 className="text-base font-bold text-stone-900">
-                  Chichewa & Tumbuka Language Localization & Review Flag
-                </h3>
-                <p className="text-xs text-stone-600 mt-1 leading-relaxed">
-                  Most smallholder farmers in Malawi speak Chichewa (central/southern) or Chitumbuka (northern). Advice is delivered in everyday agricultural terminology.
-                </p>
-              </div>
-            </div>
-
-            <div className="p-4 bg-amber-50 border border-amber-300 rounded-2xl space-y-2">
-              <div className="flex items-center gap-2 text-xs font-bold text-amber-950">
-                <AlertCircle className="w-4 h-4 text-amber-700" />
-                <span>Human Review Notice (Flagged as requested):</span>
-              </div>
-              <p className="text-xs text-amber-900 leading-relaxed">
-                Every Chichewa and Tumbuka diagnosis includes an explicit warning badge: <strong>"AI Translation — Review Recommended"</strong>. Before farmers rely on novel AI advice in the field, local Agricultural Extension Officers and native agricultural translators review the generated phrasing to ensure cultural and agronomic accuracy.
-              </p>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-              <div className="p-3 bg-stone-50 rounded-xl border border-stone-200">
-                <span className="font-bold text-stone-800 block mb-1">Common Chichewa Field Terms:</span>
-                <ul className="text-stone-600 space-y-0.5">
-                  <li>• Fall Armyworm: <em>Mbozi ya Chiwawa / Buba / Nsomba yachilendo</em></li>
-                  <li>• Maize Streak: <em>Nthenda ya Mizere ya Chimanga</em></li>
-                  <li>• Stalk Borer: <em>Kafadala / Mbozi ya m'tsinde</em></li>
-                  <li>• Extension Officer: <em>Mlangizi wa za Ulimi (AEDO)</em></li>
-                </ul>
-              </div>
-
-              <div className="p-3 bg-stone-50 rounded-xl border border-stone-200">
-                <span className="font-bold text-stone-800 block mb-1">Common Chitumbuka Field Terms:</span>
-                <ul className="text-stone-600 space-y-0.5">
-                  <li>• Fall Armyworm: <em>Nthuchi ya Chiwawa</em></li>
-                  <li>• Maize: <em>Ngoma</em></li>
-                  <li>• Tobacco: <em>Hona</em></li>
-                  <li>• Extension Officer: <em>Mulara wa Vyaulimi</em></li>
-                </ul>
               </div>
             </div>
           </div>

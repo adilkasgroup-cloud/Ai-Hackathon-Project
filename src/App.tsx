@@ -27,10 +27,8 @@ import { Sprout, BookmarkCheck } from 'lucide-react';
 function CropDoctorApp() {
   const { farmerProfile, officerProfile, userRole, officerRequest, authView, openAuth, closeAuth, getAuthHeaders } = useAuth();
 
-  const [currentLanguage, setCurrentLanguage] = useState<Language>(() => {
-    const saved = localStorage.getItem('crop_doctor_lang');
-    return (saved === 'en' || saved === 'ny' || saved === 'tum') ? saved : 'ny';
-  });
+  // The app is English only
+  const currentLanguage: Language = 'en';
 
   const [activeTab, setActiveTab] = useState<AppTab>('diagnose');
   const [hasApiKey, setHasApiKey] = useState<boolean>(false);
@@ -44,18 +42,6 @@ function CropDoctorApp() {
   const [savedSuccessMsg, setSavedSuccessMsg] = useState<string>('');
 
   const t = TRANSLATIONS[currentLanguage];
-
-  const handleLanguageChange = (lang: Language) => {
-    setCurrentLanguage(lang);
-    localStorage.setItem('crop_doctor_lang', lang);
-
-    if (currentSampleCase && currentDiagnosis) {
-      const translatedSample = currentSampleCase.precomputedResult[lang];
-      if (translatedSample) {
-        setCurrentDiagnosis(applySafetyRules(translatedSample));
-      }
-    }
-  };
 
   useEffect(() => {
     const checkConfig = async () => {
@@ -227,7 +213,6 @@ function CropDoctorApp() {
       {/* Persistent Navigation Header with Open Access Notice & Auth */}
       <Header
         currentLanguage={currentLanguage}
-        onLanguageChange={handleLanguageChange}
         activeTab={activeTab}
         onTabChange={setActiveTab}
         hasApiKey={hasApiKey}
