@@ -14,28 +14,74 @@ Safety is built in: advice starts with low-risk practices, the app never gives p
 
 ## Features
 
-- **Free photo diagnosis, no account needed.** Upload a crop photo and get the likely problem, a confidence score, treatment steps and prevention tips.
+- **Free photo diagnosis, no account needed.** Upload a crop photo (or pick a sample case) and get the likely problem, a confidence score, treatment steps and prevention tips.
 - **Safety filter.** Every result is checked before it is shown: dose and mixing instructions are removed, a licensed agro-dealer reminder is added, and low confidence triggers expert referral.
-- **Send to an extension officer.** Signed-in farmers can escalate uncertain cases and see the officer's reply under "My Case Replies".
-- **Officer portal.** Approved officers see a queue of cases (photo, AI summary, confidence, farmer's district) and reply to farmers.
-- **Secure accounts and roles.** Sign in with Google, email and password, or phone number and password (an SMS code confirms the number once, at sign-up or password reset). Everyone starts as a farmer, officers must be approved by an admin, and users cannot change their own role.
+- **Send to an extension officer.** Signed-in farmers can escalate uncertain cases and see the officer's reply under "Cases & Replies".
+- **Officer portal.** Extension officers see a queue of cases (photo, AI summary, confidence, farmer's district), filter by district, and reply to farmers.
+- **Accounts.** Sign up or sign in with:
+  - **Phone number and password.** An SMS code confirms the number once, when the account is created (or the password is reset). After that, the number and password are enough, with no code.
+  - **Email and password**, with password reset by email.
+  - **Google.**
+- **Extension officer sign-up with a 4-digit code.** Anyone who has the officer code can create an officer account. There is no admin approval step. The code is checked by the Firestore security rules, not by the browser.
+- **Locked roles.** Everyone else is a farmer, and nobody can change their own role after sign-up.
 - **AI crop chat.** Ask follow-up farming questions, with optional Google Search grounding.
 - **Bioscience workbench.** Reference profiles of common Malawian crop pests and diseases.
-- **Demo mode.** Works with sample cases when no API key is set.
+- **Demo mode.** Works with sample cases and demo officer cases when no Gemini API key is set.
+
+## Demo Accounts
+
+Use these to try the app without real accounts.
+
+| What | Value |
+|---|---|
+| Demo phone number | `0980686893` (also written `+265 980 686 893`) |
+| SMS verification code | `123456` |
+| Extension officer code (4-digit PIN) | `4827` |
+
+**Try it as a farmer**
+1. Click **Sign up**, choose **Phone number**, and enter `0980686893`.
+2. Enter the code `123456`, then choose a password.
+3. Fill in your details and choose **Farmer**.
+4. Next time, click **Sign in**, enter `0980686893` and your password. No code is asked.
+
+**Try it as an extension officer**
+1. Sign up as above, but on the details form choose **Extension officer**.
+2. Enter the officer code `4827` and your EPA.
+3. You land on the officer queue, which already has two demo cases (a maize stalk borer and a tobacco wildfire case) to review and reply to.
+
+> A phone number can only belong to one account. To try both roles, use the demo number for one and a second number or an email address for the other.
+
+**These demo values only work after the setup below.** The phone number and code are a Firebase "test phone number" that you add yourself in step 3 of Setup. No real SMS is sent for it. The officer code is set in `firestore.rules` (function `officerCode()`). **Change both before using the app with real people**, because they are public in this README.
 
 ## Tech Stack
 
 - **Frontend:** React 19, TypeScript, Vite, Tailwind CSS
-- **Backend:** Node.js with Express (`server.ts`)
-- **Auth and database:** Firebase Authentication and Cloud Firestore, with security rules
+- **Backend:** Node.js with Express (`server.ts`, run with `tsx`)
+- **Auth and database:** Firebase Authentication (phone, email/password, Google) and Cloud Firestore, protected by security rules (`firestore.rules`)
 - **AI:** Google Gemini API via the `@google/genai` SDK
+
+### Project layout
+
+| Path | What it does |
+|---|---|
+| `server.ts` | Express server: diagnosis, chat, escalation and officer APIs, demo data, serves the web app |
+| `serverAuth.ts` | Checks the user's Firebase login token and reads their role, so officer-only routes are enforced on the server |
+| `firestore.rules` | Database security rules, including the extension officer code check |
+| `src/App.tsx` | App shell and tabs |
+| `src/context/AuthContext.tsx` | Sign-in, sign-up, phone + password, roles |
+| `src/components/` | Screens: photo upload, diagnosis result, sign in/up page, escalation dialog, officer portal, farmer replies, chat, bioscience workbench |
+| `src/data/sampleCases.ts` | The four sample cases and their ready-made results |
+| `src/utils/safetyFilter.ts` | Rules that strip dosages and force escalation on low confidence |
+| `public/samples/`, `public/demo/` | Sample photos and the photos used in the demo officer cases |
+| `src/assets/samples/ATTRIBUTION.md` | Where to credit photo sources |
 
 ## AI / API Usage
 
-- **Gemini vision (`gemini-3.8-flash`)** powers photo diagnosis. The server sends the crop photo to Gemini, which returns structured JSON: crop, problem, category, severity, confidence score, treatment steps, prevention and a safety note.
-- **Gemini chat** answers follow-up questions in the AI Chat tab. The model can be switched between `gemini-3.8-flash`, `gemini-3.1-flash-lite` and `gemini-4-argon`, and **Google Search grounding** can be turned on to cite sources.
+- **Gemini vision (`gemini-3.8-flash`)** powers photo diagnosis (`POST /api/diagnose`). The server sends the crop photo to Gemini, which returns structured JSON: crop, problem, category, severity, confidence score, treatment steps, prevention and a safety note.
+- **Gemini chat** (`POST /api/chat`) answers follow-up questions in the AI Chat tab. The model can be switched between `gemini-3.8-flash`, `gemini-3.1-flash-lite` and `gemini-4-argon`, and **Google Search grounding** can be turned on to cite sources.
 - **Safety layer (`src/utils/safetyFilter.ts`).** Not AI. Rules applied to every Gemini result to strip dosages and force escalation when confidence is low.
-- **Firebase Authentication.** Verifies identity. The server checks each user's token and reads their role from Firestore before allowing officer-only actions (`serverAuth.ts`).
+- **Firebase Authentication.** Verifies identity. The server checks each user's token and reads their role from Firestore before allowing officer-only actions (`GET /api/escalations`, `PATCH /api/escalations/:id`).
+- **Officer cases** (`POST /api/escalate`, `GET /api/farmer-cases`) are kept in the server's memory, so they reset when the server restarts. Fine for a demo, not for production.
 - The Gemini API key stays on the server and is never sent to the browser.
 
 ## Setup Instructions
@@ -49,30 +95,35 @@ Safety is built in: advice starts with low-risk practices, the app never gives p
    ```bash
    bun install
    ```
-3. **Add environment variables.** Copy `.env.example` to `.env` and fill in your own values. **Do not commit real keys.** `.env` is already in `.gitignore`.
+3. **Set up Firebase** (console.firebase.google.com). Put your Firebase web config in `firebase-applet-config.json`, then:
+   - **Authentication > Sign-in method:** enable **Google**, **Email/Password** and **Phone**. Phone sign-in also needs Email/Password switched on, because phone + password uses it.
+   - **Authentication > Sign-in method > Phone > Phone numbers for testing:** add `+265980686893` with the code `123456`. This is the demo account above, and it avoids sending real SMS.
+   - **Authentication > Settings > Authorized domains:** add the domain you run the app on (`localhost` is there by default). For real phone numbers, allow Malawi (+265) in the SMS region policy.
+   - **Firestore Database:** create the database, then publish the security rules: `firebase deploy --only firestore:rules` (or paste `firestore.rules` into the Rules tab). **The officer code only works once the rules are published.**
+4. **Add environment variables.** Copy `.env.example` to `.env` and fill in your own values. **Do not commit real keys.** `.env` is already in `.gitignore`.
    ```
    GEMINI_API_KEY="your-gemini-api-key"
    ```
-   Also put your Firebase web config in `firebase-applet-config.json`, and in the Firebase console:
-   - Enable **Google**, **Email/Password** and **Phone** under Authentication > Sign-in method.
-   - Add your domain under Authentication > Settings > Authorized domains, and allow Malawi (+265) in the SMS region policy for phone sign-in.
-   - Publish the security rules: `firebase deploy --only firestore:rules` (or paste `firestore.rules` into the console).
-   - Create your first admin by setting `role` to `admin` on your own document in the `users` collection.
-4. **Run the app**
+   Without a key the app runs in Demo mode.
+5. **Run the app**
    ```bash
    bun run dev
    ```
-   Open http://localhost:3000. Without a Gemini key the app runs in Demo mode.
+   Open http://localhost:3000.
 
 Other commands: `bun run lint` (type check) and `bun run build` (production build).
+
+### Changing the extension officer code
+
+Open `firestore.rules`, edit the 4 digits in `officerCode()`, and publish the rules again. A 4-digit code has only 10,000 possibilities, so treat it as a simple gate for a demo, not as strong security. For a real deployment, use admin approval or longer one-time invite codes.
 
 ## Screenshots
 
 (Add images here)
 
 <!--
-Suggested shots: photo upload screen, a diagnosis result,
-the sign in page, the "Send to extension officer" dialog, the officer queue.
+Suggested shots: photo upload screen, a diagnosis result, the sign in page,
+the "Send to extension officer" dialog, the officer queue.
 Save images in a /screenshots folder and link them like:
 ![Diagnosis result](screenshots/diagnosis.png)
 -->

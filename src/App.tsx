@@ -15,7 +15,6 @@ import { CropChatbot } from './components/CropChatbot';
 import { BioscienceWorkbench } from './components/BioscienceWorkbench';
 import { AuthPage } from './components/AuthPage';
 import { FarmerCaseReplies } from './components/FarmerCaseReplies';
-import { AdminApprovals } from './components/AdminApprovals';
 import { DiagnosisResult as DiagnosisType, EscalationTicket, Language, SamplePhotoCase } from './types/crop';
 import { TRANSLATIONS } from './data/translations';
 import { applySafetyRules } from './utils/safetyFilter';
@@ -25,7 +24,7 @@ import { collection, addDoc } from 'firebase/firestore';
 import { Sprout, BookmarkCheck } from 'lucide-react';
 
 function CropDoctorApp() {
-  const { farmerProfile, officerProfile, userRole, officerRequest, authView, openAuth, closeAuth, getAuthHeaders, phonePasswordPending } = useAuth();
+  const { farmerProfile, officerProfile, userRole, authView, openAuth, closeAuth, getAuthHeaders, phonePasswordPending } = useAuth();
 
   // The app is English only
   const currentLanguage: Language = 'en';
@@ -89,15 +88,14 @@ function CropDoctorApp() {
   useEffect(() => {
     if (authView && userRole !== 'guest' && !phonePasswordPending) {
       closeAuth();
-      setActiveTab(userRole === 'extension_officer' ? 'extension' : userRole === 'admin' ? 'admin' : 'diagnose');
+      setActiveTab(userRole === 'extension_officer' ? 'extension' : 'diagnose');
     }
   }, [authView, userRole, phonePasswordPending]);
 
   // Ensure cases & replies view is only accessible when logged into an officer account
   useEffect(() => {
     if (activeTab === 'extension' && !officerProfile) setActiveTab('diagnose');
-    if (activeTab === 'admin' && userRole !== 'admin') setActiveTab('diagnose');
-    if (activeTab === 'farmer_replies' && (userRole === 'extension_officer' || userRole === 'admin')) setActiveTab('diagnose');
+    if (activeTab === 'farmer_replies' && userRole === 'extension_officer') setActiveTab('diagnose');
   }, [activeTab, officerProfile, userRole]);
 
   // Save diagnosis to farm history if farmer profile exists
@@ -232,19 +230,6 @@ function CropDoctorApp() {
           </div>
         )}
 
-        {/* Officer account waiting for approval */}
-        {officerRequest?.status === 'pending' && userRole === 'farmer' && (
-          <div className="p-3 bg-amber-50 border border-amber-200 text-amber-900 text-xs rounded-2xl">
-            <strong>Extension officer request pending.</strong> An administrator needs to approve your account. Until then you can
-            use Crop Doctor as a farmer.
-          </div>
-        )}
-        {officerRequest?.status === 'rejected' && userRole === 'farmer' && (
-          <div className="p-3 bg-rose-50 border border-rose-200 text-rose-900 text-xs rounded-2xl">
-            Your extension officer request was not approved. Please contact the administrator if you think this is a mistake.
-          </div>
-        )}
-
         {/* Tab 1: Diagnose Crop (100% Free & Open to Anyone without an Account) */}
         {activeTab === 'diagnose' && (
           <div>
@@ -320,9 +305,6 @@ function CropDoctorApp() {
           <FarmerCaseReplies currentLanguage={currentLanguage} onNavigateToDiagnose={() => setActiveTab('diagnose')} />
         )}
 
-        {/* Admin: approve extension officers */}
-        {activeTab === 'admin' && <AdminApprovals />}
-
         {/* Tab 6: How It Works & Architecture Guide */}
         {activeTab === 'explainer' && (
           <ExplanationModal
@@ -383,7 +365,7 @@ function CropDoctorApp() {
               Bioscience
             </button>
             <span>•</span>
-            {!farmerProfile && !officerProfile && userRole !== 'admin' && (
+            {!farmerProfile && !officerProfile && (
               <button
                 onClick={() => openAuth('signin')}
                 className="hover:text-emerald-700 transition-colors cursor-pointer font-semibold text-emerald-800"

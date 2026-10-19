@@ -26,7 +26,7 @@ const GoogleLogo = () => (
  *  - Sign up  : new users. Google, then a ONE-TIME form (role + details).
  *
  * The role chosen here is only a request: everyone starts as a farmer, and extension
- * officer access has to be approved by an admin.
+ * officer access needs the 4-digit officer code (checked by the Firestore rules).
  */
 export const AuthPage: React.FC<AuthPageProps> = ({ currentLanguage, onClose }) => {
   const {
@@ -69,6 +69,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({ currentLanguage, onClose }) 
   const [phone, setPhone] = useState('');
   const [district, setDistrict] = useState('Lilongwe');
   const [epa, setEpa] = useState('');
+  const [officerPin, setOfficerPin] = useState('');
   const [consent, setConsent] = useState(false);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
@@ -278,12 +279,17 @@ export const AuthPage: React.FC<AuthPageProps> = ({ currentLanguage, onClose }) 
     if (!name.trim()) return setError('Please enter your full name.');
     if (phone.replace(/\D/g, '').length < 9) return setError('Please enter a valid phone number, e.g. +265 888 123 456.');
     if (requestedRole === 'extension_officer' && !epa.trim()) return setError('Please enter the EPA you are assigned to.');
+    if (requestedRole === 'extension_officer' && !/^\d{4}$/.test(officerPin)) return setError('Please enter the 4-digit extension officer code.');
     if (!consent) return setError('Please tick the privacy consent box to continue.');
 
     setBusy(true);
     try {
-      await createAccount({ requestedRole, name, phone, district, epa, consentGiven: consent });
+      await createAccount({ requestedRole, officerPin, name, phone, district, epa, consentGiven: consent });
     } catch (err: any) {
+      if (requestedRole === 'extension_officer' && err?.code === 'permission-denied') {
+        setError('That extension officer code is not correct. Please check it and try again.');
+        return;
+      }
       setError(err?.message || 'Could not create your account. Please try again.');
     } finally {
       setBusy(false);
@@ -741,9 +747,24 @@ export const AuthPage: React.FC<AuthPageProps> = ({ currentLanguage, onClose }) 
                 {requestedRole === 'extension_officer' && (
                   <div className="p-3 bg-blue-50 border border-blue-200 rounded-xl text-xs text-blue-900 flex items-start gap-2">
                     <ShieldCheck className="w-4 h-4 text-blue-700 shrink-0 mt-0.5" />
-                    <span>
-                      Officer accounts are <strong>approved by an administrator</strong>. Until then you'll have normal farmer access.
-                    </span>
+                    <span>Enter the <strong>4-digit extension officer code</strong> you were given to create an officer account.</span>
+                  </div>
+                )}
+
+                {requestedRole === 'extension_officer' && (
+                  <div>
+                    <label className="block text-xs font-bold text-stone-800 mb-1">Extension officer code</label>
+                    <input
+                      className={`${inputClass} font-mono tracking-[0.5em] text-center text-lg`}
+                      type="password"
+                      inputMode="numeric"
+                      autoComplete="off"
+                      maxLength={4}
+                      value={officerPin}
+                      onChange={(e) => setOfficerPin(e.target.value.replace(/\D/g, ''))}
+                      placeholder="••••"
+                      required
+                    />
                   </div>
                 )}
 

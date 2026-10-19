@@ -118,7 +118,7 @@ export const ExtensionOfficerPortal: React.FC<ExtensionOfficerPortalProps> = ({
   const pendingCount = tickets.filter((t) => t.status === 'pending').length;
   const criticalCount = tickets.filter((t) => t.diagnosis.severity === 'critical').length;
 
-  // ACCESS GUARD: only approved extension officers see the queue (the server enforces this too)
+  // ACCESS GUARD: only extension officers see the queue (the server enforces this too)
   if (!officerProfile) {
     return (
       <div className="bg-white rounded-3xl border border-stone-200 shadow-sm p-8 max-w-lg mx-auto my-8 space-y-6 text-center animate-in fade-in duration-300">
@@ -132,8 +132,8 @@ export const ExtensionOfficerPortal: React.FC<ExtensionOfficerPortalProps> = ({
           </div>
           <h2 className="text-xl font-bold text-stone-900 tracking-tight">Officer Cases & Replies</h2>
           <p className="text-xs text-stone-500 mt-1.5 max-w-sm mx-auto leading-relaxed">
-            Submitted farmer crop cases are only available to approved Agricultural Extension Development Officers (AEDO).
-            Officer accounts are approved by an administrator.
+            Submitted farmer crop cases are only available to Agricultural Extension Development Officers (AEDO).
+            Officer accounts are created with a 4-digit extension officer code.
           </p>
         </div>
 

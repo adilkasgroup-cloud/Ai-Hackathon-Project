@@ -4,7 +4,7 @@ import { TRANSLATIONS } from '../data/translations';
 import { Sprout, UserCheck, HelpCircle, Sparkles, MessageSquare, Dna, Lock, User, FileText, Inbox, LogOut, ShieldCheck, ChevronDown } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
-export type AppTab = 'diagnose' | 'chat' | 'farmer_replies' | 'science' | 'extension' | 'admin' | 'explainer';
+export type AppTab = 'diagnose' | 'chat' | 'farmer_replies' | 'science' | 'extension' | 'explainer';
 
 interface HeaderProps {
   currentLanguage: Language;
@@ -31,7 +31,7 @@ export const Header: React.FC<HeaderProps> = ({
   const { profile, farmerProfile, officerProfile, userRole, needsOnboarding, loading, signOut } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
   const firstName = (profile?.displayName || '').split(' ')[0] || 'Account';
-  const roleLabel = userRole === 'extension_officer' ? 'Extension Officer' : userRole === 'admin' ? 'Administrator' : 'Farmer';
+  const roleLabel = userRole === 'extension_officer' ? 'Extension Officer' : 'Farmer';
 
   return (
     <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-emerald-900/10 shadow-xs">
@@ -54,8 +54,6 @@ export const Header: React.FC<HeaderProps> = ({
                 >
                   {userRole === 'extension_officer' ? (
                     <Lock className="w-3 h-3 text-emerald-400" />
-                  ) : userRole === 'admin' ? (
-                    <ShieldCheck className="w-3 h-3 text-emerald-400" />
                   ) : (
                     <User className="w-3 h-3 text-emerald-400" />
                   )}
@@ -186,7 +184,7 @@ export const Header: React.FC<HeaderProps> = ({
             </button>
 
             {/* Farmer Case Replies Tab (farmers and visitors only; officers have their own queue) */}
-            {userRole !== 'extension_officer' && userRole !== 'admin' && (
+            {userRole !== 'extension_officer' && (
               <button
                 onClick={() => {
                   if (!farmerProfile) {
@@ -238,21 +236,6 @@ export const Header: React.FC<HeaderProps> = ({
                     {pendingEscalationsCount}
                   </span>
                 )}
-              </button>
-            )}
-
-            {/* Admin: approve extension officers (admins only) */}
-            {userRole === 'admin' && (
-              <button
-                onClick={() => onTabChange('admin')}
-                className={`flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-xl transition-colors shrink-0 cursor-pointer ${
-                  activeTab === 'admin'
-                    ? 'bg-blue-100 text-blue-900 border border-blue-300'
-                    : 'text-stone-700 hover:bg-stone-100'
-                }`}
-              >
-                <ShieldCheck className="w-4 h-4 text-blue-700" />
-                <span>Approvals</span>
               </button>
             )}
 
