@@ -75,14 +75,33 @@ Use these to try the app without real accounts. Both phone numbers are Firebase 
 | `public/samples/`, `public/demo/` | Sample photos and the photos used in the demo officer cases |
 | `src/assets/samples/ATTRIBUTION.md` | Where to credit photo sources |
 
-## AI / API Usage
+## AI Methodology and Implementation
 
-- **Gemini vision (`gemini-3.8-flash`)** powers photo diagnosis (`POST /api/diagnose`). The server sends the crop photo to Gemini, which returns structured JSON: crop, problem, category, severity, confidence score, treatment steps, prevention and a safety note.
-- **Gemini chat** (`POST /api/chat`) answers follow-up questions in the AI Chat tab. The model can be switched between `gemini-3.8-flash`, `gemini-3.1-flash-lite` and `gemini-4-argon`, and **Google Search grounding** can be turned on to cite sources.
-- **Safety layer (`src/utils/safetyFilter.ts`).** Not AI. Rules applied to every Gemini result to strip dosages and force escalation when confidence is low.
-- **Firebase Authentication.** Verifies identity. The server checks each user's token and reads their role from Firestore before allowing officer-only actions (`GET /api/escalations`, `PATCH /api/escalations/:id`).
-- **Officer cases** (`POST /api/escalate`, `GET /api/farmer-cases`) are kept in the server's memory, so they reset when the server restarts. Fine for a demo, not for production.
-- The Gemini API key stays on the server and is never sent to the browser.
+Crop Doctor does not train or fine-tune a model. It uses a general Gemini model, gives it strict instructions, and then checks its answer with plain rules before a farmer sees it.
+
+1. **Photo in.** The farmer uploads a photo (and may pick the crop). The browser sends it to our server, never directly to Gemini.
+2. **Instructions.** The server sends the photo to Gemini with a system instruction that says: describe only what is physically visible in the photo, give low-risk practices first (scouting, hand-picking, removing infected plants, crop rotation), mention chemicals only as a later option, never give doses, and say so when the photo is unclear.
+3. **Structured answer.** Gemini is asked for JSON in a fixed shape (crop, category, diagnosis, visual observations, two alternative diagnoses with how to tell them apart, severity, confidence score, treatment steps, prevention, safety note). The temperature is low (0.2) so answers stay consistent. If the reply is not clean JSON, the server pulls the JSON out of the text.
+4. **Safety rules (not AI).** `src/utils/safetyFilter.ts` runs on every result:
+   - removes dose and mixing instructions with pattern matching, and adds a reminder to buy registered products from a licensed agro-dealer and follow the label;
+   - adds a protective-gear safety note if one is missing;
+   - sets the confidence level (high from 80, medium from 65, otherwise low);
+   - **forces escalation to a human** when confidence is under 70%, the photo is unclear, or severity is critical.
+5. **Human in the loop.** The farmer can send the case, with the photo and the AI summary, to an extension officer. The officer's reply appears in the farmer's "Cases & Replies" tab.
+6. **Demo mode.** Without a Gemini API key the server returns the ready-made sample results, so the whole flow can be shown offline.
+
+The AI chat uses the same idea: a system instruction that adapts to the user's role (farmer or extension officer), with optional Google Search grounding so answers can cite sources.
+
+## AI Models and API Usage
+
+| Where | Model | API | What it does |
+|---|---|---|---|
+| Photo diagnosis (`POST /api/diagnose`) | `gemini-3.8-flash` | Gemini API (`@google/genai`), image input, JSON output | Identifies the likely disease or pest from the photo |
+| AI chat (`POST /api/chat`) | `gemini-3.8-flash` (default), switchable to `gemini-3.1-flash-lite` or `gemini-4-argon` | Gemini API, optional Google Search grounding | Answers follow-up farming questions |
+| Sign-in | Not AI | Firebase Authentication | Verifies identity. The server checks each user's token and reads their role from Firestore before allowing officer-only actions (`GET /api/escalations`, `PATCH /api/escalations/:id`) |
+| Officer cases | Not AI | `POST /api/escalate`, `GET /api/farmer-cases` | Kept in the server's memory, so they reset when the server restarts. Fine for a demo, not for production |
+
+The Gemini API key stays on the server (in `.env`) and is never sent to the browser.
 
 ## Setup Instructions
 
@@ -119,14 +138,22 @@ Open `firestore.rules`, edit the 4 digits in `officerCode()`, and publish the ru
 
 ## Screenshots
 
-(Add images here)
+*Screenshots still need to be added.* Run the app, take these shots, save them in a `screenshots/` folder with these names, then replace this note with the images.
 
-<!--
-Suggested shots: photo upload screen, a diagnosis result, the sign in page,
-the "Send to extension officer" dialog, the officer queue.
-Save images in a /screenshots folder and link them like:
-![Diagnosis result](screenshots/diagnosis.png)
--->
+| File to add | What to capture |
+|---|---|
+| `screenshots/home-upload.png` | Home screen with the photo upload and sample cases |
+| `screenshots/diagnosis-result.png` | A diagnosis result with the confidence score and safety note |
+| `screenshots/low-confidence.png` | The unclear sample, showing the forced escalation notice |
+| `screenshots/sign-in.png` | The sign-in page (phone + password) |
+| `screenshots/send-to-officer.png` | The "Send to extension officer" dialog |
+| `screenshots/officer-queue.png` | The officer queue with a case open |
+
+Then add them like this:
+
+```markdown
+![Diagnosis result](screenshots/diagnosis-result.png)
+```
 
 ## Team Contributions
 
