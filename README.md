@@ -144,12 +144,17 @@ Open `firestore.rules`, edit the 4 digits in `officerCode()`, and publish the ru
 |---|---|
 | `docs/screenshots/01-home.png` | Home screen with the photo upload and sample cases |
 | `docs/screenshots/04-diagnosis-result.png` | A diagnosis result with the confidence score and safety note |
-| `docs/screenshots/02-crop-details.png` | The unclear sample, showing the forced escalation notice |
+| `docs/screenshots/02-crop-details.png` | Sample showing crop details |
 | `docs/screenshots/06-sign-in.png` | The sign-in page (phone + password) |
 | `docs/screenshots/05-send-to-extension-officer.png` | The "Send to extension officer" dialog |
 | `docs/screenshots/07-extension-officer-queue.png` | The officer queue with a case open |
 
 
 ## Team Contributions
-
-- Name: role and what they built *(add your team members here)*
+r
+- Name: Hamida Dzanjalimodzi: Team Lead
+Frontend Developer
+Backend Developer
+AI/ML Engineer
+UI/UX Designer
+Emmanuel Manda: Documentation and research
