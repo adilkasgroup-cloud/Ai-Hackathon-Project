@@ -18,7 +18,7 @@ Safety is built in: advice starts with low-risk practices, the app never gives p
 - **Safety filter.** Every result is checked before it is shown: dose and mixing instructions are removed, a licensed agro-dealer reminder is added, and low confidence triggers expert referral.
 - **Send to an extension officer.** Signed-in farmers can escalate uncertain cases and see the officer's reply under "My Case Replies".
 - **Officer portal.** Approved officers see a queue of cases (photo, AI summary, confidence, farmer's district) and reply to farmers.
-- **Secure accounts and roles.** Sign in with Google, email and password, or phone number (SMS code). Everyone starts as a farmer, officers must be approved by an admin, and users cannot change their own role.
+- **Secure accounts and roles.** Sign in with Google, email and password, or phone number and password (an SMS code confirms the number once, at sign-up or password reset). Everyone starts as a farmer, officers must be approved by an admin, and users cannot change their own role.
 - **AI crop chat.** Ask follow-up farming questions, with optional Google Search grounding.
 - **Bioscience workbench.** Reference profiles of common Malawian crop pests and diseases.
 - **Demo mode.** Works with sample cases when no API key is set.

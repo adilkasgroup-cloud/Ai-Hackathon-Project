@@ -11,6 +11,9 @@ import {
   RecaptchaVerifier,
   signInWithPhoneNumber,
   ConfirmationResult,
+  EmailAuthProvider,
+  linkWithCredential,
+  updatePassword,
 } from 'firebase/auth';
 import { doc, onSnapshot, writeBatch } from 'firebase/firestore';
 import { auth, db, googleProvider, testConnection } from '../lib/firebase';
@@ -83,6 +86,18 @@ export interface NewAccountInput {
 
 export type AuthView = 'signin' | 'signup' | null;
 
+/**
+ * Phone + password
+ * ----------------
+ * Firebase can only sign someone in by phone with an SMS code. To let returning users sign in with
+ * their number and a password (no code), we attach an email/password login to the same account
+ * whose "email" is made from the phone number. The number itself is proven once, by SMS, when
+ * the account is created (or the password is reset). That made-up address is never shown or emailed.
+ */
+const PHONE_EMAIL_DOMAIN = 'phone.users.cropdoctor.example';
+export const phoneToEmail = (e164: string): string => `${e164.replace(/\D/g, '')}@${PHONE_EMAIL_DOMAIN}`;
+export const isPhoneEmail = (email?: string | null): boolean => !!email && email.endsWith(`@${PHONE_EMAIL_DOMAIN}`);
+
 interface AuthContextType {
   firebaseUser: User | null;
   profile: UserProfile | null;
@@ -102,7 +117,13 @@ interface AuthContextType {
   /** Phone: text a 6-digit code to the number (E.164 format, e.g. +265888123456) */
   sendPhoneCode: (phoneE164: string, recaptchaContainerId: string) => Promise<void>;
   /** Phone: check the code the user received. Signs them in when correct. */
-  confirmPhoneCode: (code: string) => Promise<void>;
+  confirmPhoneCode: (code: string, thenSetPassword?: boolean) => Promise<void>;
+  /** Phone: after the SMS check, choose (or reset) the password used to sign in next time */
+  setPhonePassword: (password: string) => Promise<void>;
+  /** Phone + password sign-in, no SMS code */
+  signInWithPhonePassword: (phoneE164: string, password: string) => Promise<void>;
+  /** True between the SMS check and choosing a password (keeps the sign-in page open) */
+  phonePasswordPending: boolean;
   createAccount: (input: NewAccountInput) => Promise<void>;
   signOut: () => Promise<void>;
   /** Authorization header for calls to our own /api routes */
@@ -128,6 +149,9 @@ const AuthContext = createContext<AuthContextType>({
   sendPasswordReset: async () => {},
   sendPhoneCode: async () => {},
   confirmPhoneCode: async () => {},
+  setPhonePassword: async () => {},
+  signInWithPhonePassword: async () => {},
+  phonePasswordPending: false,
   createAccount: async () => {},
   signOut: async () => {},
   getAuthHeaders: async () => ({}),
@@ -143,6 +167,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [profileReady, setProfileReady] = useState(false);
   const [officerRequest, setOfficerRequest] = useState<OfficerRequest | null>(null);
   const [authView, setAuthView] = useState<AuthView>(null);
+  const [phonePasswordPending, setPhonePasswordPending] = useState(false);
 
   // 1. Who is signed in?
   useEffect(() => {
@@ -284,12 +309,35 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, []);
 
-  const confirmPhoneCode = useCallback(async (code: string) => {
+  const confirmPhoneCode = useCallback(async (code: string, thenSetPassword = false) => {
     if (!confirmationRef.current) {
       throw Object.assign(new Error('Please request a new code.'), { code: 'auth/code-expired' });
     }
-    await confirmationRef.current.confirm(code.trim());
-    confirmationRef.current = null;
+    // Raised before sign-in so the page stays open for the password step
+    if (thenSetPassword) setPhonePasswordPending(true);
+    try {
+      await confirmationRef.current.confirm(code.trim());
+      confirmationRef.current = null;
+    } catch (err) {
+      setPhonePasswordPending(false);
+      throw err;
+    }
+  }, []);
+
+  const setPhonePassword = useCallback(async (password: string) => {
+    const user = auth.currentUser;
+    if (!user?.phoneNumber) throw new Error('Please verify your phone number first.');
+    const hasPassword = user.providerData.some((p) => p.providerId === 'password');
+    if (hasPassword) {
+      await updatePassword(user, password);
+    } else {
+      await linkWithCredential(user, EmailAuthProvider.credential(phoneToEmail(user.phoneNumber), password));
+    }
+    setPhonePasswordPending(false);
+  }, []);
+
+  const signInWithPhonePassword = useCallback(async (phoneE164: string, password: string) => {
+    await signInWithEmailAndPassword(auth, phoneToEmail(phoneE164), password);
   }, []);
 
   const createAccount = useCallback(
@@ -307,7 +355,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // Everyone starts as a farmer. The rules reject any other role here.
       batch.set(doc(db, 'users', user.uid), {
         uid: user.uid,
-        email: user.email || '',
+        email: isPhoneEmail(user.email) ? '' : user.email || '',
         displayName: name,
         phone,
         district,
@@ -324,7 +372,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           uid: user.uid,
           status: 'pending',
           displayName: name,
-          email: user.email || '',
+          email: isPhoneEmail(user.email) ? '' : user.email || '',
           phone,
           district,
           epa,
@@ -367,6 +415,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         sendPasswordReset,
         sendPhoneCode,
         confirmPhoneCode,
+        setPhonePassword,
+        signInWithPhonePassword,
+        phonePasswordPending,
         createAccount,
         signOut,
         getAuthHeaders,

@@ -25,7 +25,7 @@ import { collection, addDoc } from 'firebase/firestore';
 import { Sprout, BookmarkCheck } from 'lucide-react';
 
 function CropDoctorApp() {
-  const { farmerProfile, officerProfile, userRole, officerRequest, authView, openAuth, closeAuth, getAuthHeaders } = useAuth();
+  const { farmerProfile, officerProfile, userRole, officerRequest, authView, openAuth, closeAuth, getAuthHeaders, phonePasswordPending } = useAuth();
 
   // The app is English only
   const currentLanguage: Language = 'en';
@@ -87,11 +87,11 @@ function CropDoctorApp() {
 
   // After signing in or finishing sign-up, close the sign-in page and land on the right screen.
   useEffect(() => {
-    if (authView && userRole !== 'guest') {
+    if (authView && userRole !== 'guest' && !phonePasswordPending) {
       closeAuth();
       setActiveTab(userRole === 'extension_officer' ? 'extension' : userRole === 'admin' ? 'admin' : 'diagnose');
     }
-  }, [authView, userRole]);
+  }, [authView, userRole, phonePasswordPending]);
 
   // Ensure cases & replies view is only accessible when logged into an officer account
   useEffect(() => {
