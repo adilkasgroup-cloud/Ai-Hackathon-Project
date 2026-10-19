@@ -30,28 +30,28 @@ Safety is built in: advice starts with low-risk practices, the app never gives p
 
 ## Demo Accounts
 
-Use these to try the app without real accounts.
+Use these to try the app without real accounts. Both phone numbers are Firebase "test phone numbers", so no real SMS is sent.
 
-| What | Value |
-|---|---|
-| Demo phone number | `0980686893` (also written `+265 980 686 893`) |
-| SMS verification code | `123456` |
-| Extension officer code (4-digit PIN) | `4827` |
+| Account | Phone number | SMS code | Other |
+|---|---|---|---|
+| **Demo farmer** | `0999000111` (also written `+265 999 000 111`) | `654321` | Choose **Farmer** on the details form |
+| **Demo extension officer** | `0980686893` (also written `+265 980 686 893`) | `123456` | Choose **Extension officer** and enter the officer code `4827` |
 
 **Try it as a farmer**
-1. Click **Sign up**, choose **Phone number**, and enter `0980686893`.
-2. Enter the code `123456`, then choose a password.
+1. Click **Sign up**, choose **Phone number**, and enter `0999000111`.
+2. Enter the code `654321`, then choose a password.
 3. Fill in your details and choose **Farmer**.
-4. Next time, click **Sign in**, enter `0980686893` and your password. No code is asked.
+4. Diagnose a sample crop photo, then use **Send to extension officer** to create a case.
+5. Next time, click **Sign in**, enter `0999000111` and your password. No code is asked.
 
 **Try it as an extension officer**
-1. Sign up as above, but on the details form choose **Extension officer**.
-2. Enter the officer code `4827` and your EPA.
-3. You land on the officer queue, which already has two demo cases (a maize stalk borer and a tobacco wildfire case) to review and reply to.
+1. Click **Sign up**, choose **Phone number**, and enter `0980686893`. Enter the code `123456`, then choose a password.
+2. On the details form choose **Extension officer**, enter the officer code `4827` and your EPA.
+3. You land on the officer queue, which already has two demo cases (a maize stalk borer and a tobacco wildfire case) to review and reply to. The case the demo farmer sent also shows up here.
 
-> A phone number can only belong to one account. To try both roles, use the demo number for one and a second number or an email address for the other.
+> A phone number can only belong to one account, so each demo number is used for one role. To try the same role twice, use an email address or another number.
 
-**These demo values only work after the setup below.** The phone number and code are a Firebase "test phone number" that you add yourself in step 3 of Setup. No real SMS is sent for it. The officer code is set in `firestore.rules` (function `officerCode()`). **Change both before using the app with real people**, because they are public in this README.
+**These demo values only work after the setup below.** The phone numbers and codes are Firebase test numbers that you add yourself in step 3 of Setup. The officer code is set in `firestore.rules` (function `officerCode()`). **Change or remove all of them before using the app with real people**, because they are public in this README.
 
 ## Tech Stack
 
@@ -97,7 +97,7 @@ Use these to try the app without real accounts.
    ```
 3. **Set up Firebase** (console.firebase.google.com). Put your Firebase web config in `firebase-applet-config.json`, then:
    - **Authentication > Sign-in method:** enable **Google**, **Email/Password** and **Phone**. Phone sign-in also needs Email/Password switched on, because phone + password uses it.
-   - **Authentication > Sign-in method > Phone > Phone numbers for testing:** add `+265980686893` with the code `123456`. This is the demo account above, and it avoids sending real SMS.
+   - **Authentication > Sign-in method > Phone > Phone numbers for testing:** add both demo numbers from the Demo Accounts table: `+265999000111` with code `654321` (farmer) and `+265980686893` with code `123456` (officer). This avoids sending real SMS.
    - **Authentication > Settings > Authorized domains:** add the domain you run the app on (`localhost` is there by default). For real phone numbers, allow Malawi (+265) in the SMS region policy.
    - **Firestore Database:** create the database, then publish the security rules: `firebase deploy --only firestore:rules` (or paste `firestore.rules` into the Rules tab). **The officer code only works once the rules are published.**
 4. **Add environment variables.** Copy `.env.example` to `.env` and fill in your own values. **Do not commit real keys.** `.env` is already in `.gitignore`.
