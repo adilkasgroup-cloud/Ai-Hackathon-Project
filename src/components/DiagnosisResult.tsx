@@ -289,7 +289,7 @@ export const DiagnosisResult: React.FC<DiagnosisResultProps> = ({
                   >
                     <div className="flex items-center justify-between gap-2 mb-1.5">
                       <span className="text-xs font-bold text-stone-900">
-                        {diff.localName ? `${diff.localName} (${diff.name})` : diff.name}
+                        {diff.name}
                       </span>
                       <span className="text-[11px] font-bold text-stone-600 bg-white px-2 py-0.5 rounded border border-stone-200">
                         {diff.probability}% likelihood

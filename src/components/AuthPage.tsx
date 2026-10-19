@@ -599,7 +599,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({ currentLanguage, onClose }) 
 
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-xs font-bold text-stone-800 mb-1">District (Boma)</label>
+                    <label className="block text-xs font-bold text-stone-800 mb-1">District</label>
                     <select className={inputClass} value={district} onChange={(e) => setDistrict(e.target.value)}>
                       {MALAWI_DISTRICTS.map((d) => (
                         <option key={d} value={d}>

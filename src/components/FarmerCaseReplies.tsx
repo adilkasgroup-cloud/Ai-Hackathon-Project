@@ -73,7 +73,7 @@ export const FarmerCaseReplies: React.FC<FarmerCaseRepliesProps> = ({
 
   const getWhatsAppOfficerUrl = (ticket: EscalationTicket) => {
     const text = [
-      `Moni Bwana / Extension Officer,`,
+      `Hello Extension Officer,`,
       `This is farmer ${farmerProfile?.name || ticket.farmerName} from ${ticket.district} (${ticket.epa || 'EPA'}).`,
       `Regarding my crop case #${ticket.id.slice(-6).toUpperCase()} for *${ticket.diagnosis.cropName}*:`,
       `Thank you for your guidance. I have a question about next steps.`,
@@ -146,7 +146,7 @@ export const FarmerCaseReplies: React.FC<FarmerCaseRepliesProps> = ({
               </span>
             </div>
             <p className="text-xs text-stone-500 mt-0.5">
-              Mlimi: <strong>{farmerProfile.name}</strong> • Phone: {farmerProfile.phone} • {farmerProfile.district} District
+              Farmer: <strong>{farmerProfile.name}</strong> • Phone: {farmerProfile.phone} • {farmerProfile.district} District
             </p>
           </div>
         </div>

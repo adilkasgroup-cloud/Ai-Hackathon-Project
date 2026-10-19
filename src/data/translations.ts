@@ -98,7 +98,7 @@ export const TRANSLATIONS: Record<Language, TranslationDictionary> = {
     resetPhotoBtn: 'Examine Another Crop',
     officerModalTitle: 'Connect with an Agricultural Extension Officer',
     officerModalDesc: 'Send this photo, symptoms, and your farm details to your local EPA / AEDO officer for direct human guidance.',
-    farmerNameLabel: 'Your Name (Mlimi)',
+    farmerNameLabel: 'Your Name',
     farmerPhoneLabel: 'Phone / WhatsApp Number',
     districtLabel: 'District in Malawi',
     epaLabel: 'EPA / Extension Area (Optional)',

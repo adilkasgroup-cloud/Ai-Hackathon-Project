@@ -103,9 +103,9 @@ export const EscalationModal: React.FC<EscalationModalProps> = ({
     if (!farmerProfile) return '#';
     const text = [
       `*Crop Doctor Malawi - Extension Request*`,
-      `*Mlimi / Farmer:* ${farmerProfile.name}`,
+      `*Farmer:* ${farmerProfile.name}`,
       `*Phone:* ${farmerProfile.phone}`,
-      `*District / Boma:* ${farmerProfile.district} (EPA: ${farmerProfile.epa || 'N/A'}, Village: ${village || 'N/A'})`,
+      `*District:* ${farmerProfile.district} (EPA: ${farmerProfile.epa || 'N/A'}, Village: ${village || 'N/A'})`,
       `*Crop:* ${diagnosis.cropName}`,
       `*AI Suspected Issue:* ${diagnosis.localDiagnosisName} (${diagnosis.primaryDiagnosis})`,
       `*Confidence:* ${diagnosis.confidenceScore}%`,
